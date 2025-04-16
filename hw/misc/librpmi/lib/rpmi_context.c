@@ -44,10 +44,10 @@ struct rpmi_context {
 	/** Temporary acknowledgment message */
 	struct rpmi_message *ack_msg;
 
-	/** Base serivce group */
+	/** Base service group */
 	struct rpmi_service_group *base_group;
 
-	/** System MSI serivce group */
+	/** System MSI service group */
 	struct rpmi_service_group *sysmsi_group;
 };
 

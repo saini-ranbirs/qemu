@@ -1,4 +1,4 @@
- /*
+/*
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2024 Ventana Micro Systems
@@ -58,6 +58,4 @@
 
 #define RPMI_ROUNDDOWN(a, b) ((a) / (b) * (b))
 
-#endif
-
-
+#endif /* __LIBRPMI_INTERNAL_H__ */
