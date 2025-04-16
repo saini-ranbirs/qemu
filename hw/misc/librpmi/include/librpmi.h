@@ -323,6 +323,14 @@ enum rpmi_cppc_service_id {
 	RPMI_CPPC_SRV_ID_MAX,
 };
 
+/** RPMI Management Mode (MM) ServiceGroup Service IDs */
+enum rpmi_mm_service_id {
+	RPMI_MM_SRV_ENABLE_NOTIFICATION = 0x01,
+	RPMI_MM_SRV_GET_ATTRIBUTES = 0x02,
+	RPMI_MM_SRV_COMMUNICATE = 0x03,
+	RPMI_MM_SRV_ID_MAX,
+};
+
 /** @} */
 
 /****************************************************************************/
@@ -1129,6 +1137,26 @@ struct rpmi_service_group *rpmi_service_group_hsm_create(struct rpmi_hsm *hsm);
  * @param[in] group		pointer to RPMI service group instance
  */
 void rpmi_service_group_hsm_destroy(struct rpmi_service_group *group);
+
+/**
+ * @brief Create a management mode (MM) service group instance
+ *
+ * @param[in] shmem_addr_lo	Shared Memory Address low 32 bits
+ * @param[in] shmem_addr_hi	Shared Memory Address high 32 bits
+ * @param[in] shmem_size	Size of the Shared Memory
+ * @return pointer to RPMI service group instance upon success
+ *         NULL upon failure
+ */
+struct rpmi_service_group *
+rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_lo,
+			     rpmi_uint32_t shmem_addr_hi,
+			     rpmi_uint32_t shmem_size);
+/**
+ * @brief Destroy (or free) a management mode (HSM) service group instance
+ *
+ * @param[in] group		pointer to RPMI service group instance
+ */
+void rpmi_service_group_mm_destroy(struct rpmi_service_group *group);
 
 /** @} */
 

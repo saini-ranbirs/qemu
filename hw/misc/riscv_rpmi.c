@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/misc/riscv_rpmi.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
@@ -54,6 +55,8 @@ int add_cppc_group(struct rpmi_context *rctx,
 void *get_soc_hsm_context(void);
 struct rpmi_shmem *rpmi_shmem_qemu_create(const char *name, rpmi_uint64_t base,
                                             rpmi_uint32_t size);
+
+int add_mm_group(struct rpmi_context *rctx, hwaddr shm_addr, int shm_sz);
 
 void handle_rpmi_event(void)
 {
@@ -227,6 +230,11 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
                       "%s: rpmi_context created: %p\n",
                       __func__, rctx);
     }
+
+    /* create MM group */
+    if (!add_mm_group(rctx, shm_addr, shm_sz))
+        info_report("mm grp create success");
+
     /* create HSM group */
     add_hsm_group(rctx, harts_mask, soc_xport_type, &hsm_ctx);
 
