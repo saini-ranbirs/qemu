@@ -1398,6 +1398,22 @@ static void create_fdt_rpmi_cppc(RISCVVirtState *s, uint64_t shmem_base,
     g_free(name);
 }
 
+static void create_fdt_rpmi_mm(RISCVVirtState *s, uint64_t shmem_base,
+                               uint32_t rpmi_mbox_handle)
+{
+    char *name;
+    uint32_t rpmi_mm_servicegrp = 0x000B;
+    MachineState *ms = MACHINE(s);
+
+    name = g_strdup_printf("/soc/mailbox@%lx/mm@%lx", (long)shmem_base,
+                           (long)rpmi_mm_servicegrp);
+    qemu_fdt_add_subnode(ms->fdt, name);
+    qemu_fdt_setprop_string(ms->fdt, name, "compatible", "riscv,rpmi-mm");
+    qemu_fdt_setprop_cells(ms->fdt, name, "mboxes", rpmi_mbox_handle,
+                           rpmi_mm_servicegrp);
+    g_free(name);
+}
+
 static void create_fdt_sbi_mbox(RISCVVirtState *s, uint32_t *phandle,
                                 uint32_t msi_phandle, uint32_t *mpxy_mbox_phandle)
 {
@@ -1482,6 +1498,18 @@ static void create_fdt_sbi_mpxy_clk(RISCVVirtState *s, uint32_t mpxy_mbox_phandl
     g_free(name);
 }
 
+static void create_fdt_sbi_mpxy_mm(RISCVVirtState *s, uint32_t mpxy_mbox_phandle)
+{
+    char *name;
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/soc/sbi-mpxy-mm");
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "riscv,sbi-mpxy-mm");
+    qemu_fdt_setprop_cells(mc->fdt, name, "mboxes", mpxy_mbox_phandle, 0x1002, 0x0);
+    g_free(name);
+}
+
 static void create_fdt_rpmi_sysmsi(RISCVVirtState *s, uint64_t shmem_base,
                                    uint32_t rpmi_mbox_handle)
 {
@@ -1549,6 +1577,10 @@ static void create_fdt_rpmi_nodes(RISCVVirtState *s, int xport_id,
         create_fdt_rpmi_hsm(s, shmem_base, rpmi_mbox_handle);
         create_fdt_rpmi_cppc(s, shmem_base, rpmi_mbox_handle);
     }
+
+    /* Keeping common - yet to understand diff b/w SoC vs Socket xport */
+    create_fdt_rpmi_mm(s, shmem_base, rpmi_mbox_handle);
+    create_fdt_sbi_mpxy_mm(s, mbox_phandle);
 }
 
 static void finalize_fdt(RISCVVirtState *s)
