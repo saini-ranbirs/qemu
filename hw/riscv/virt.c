@@ -1482,6 +1482,18 @@ static void create_fdt_sbi_mpxy_clk(RISCVVirtState *s, uint32_t mpxy_mbox_phandl
     g_free(name);
 }
 
+static void create_fdt_sbi_mpxy_mm(RISCVVirtState *s, uint32_t mpxy_mbox_phandle)
+{
+    MachineState *mc = MACHINE(s);
+    char *name;
+
+    name = g_strdup_printf("/soc/sbi-mpxy-mm");
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "riscv,rpmi-mm");
+    qemu_fdt_setprop_cells(mc->fdt, name, "mboxes", mpxy_mbox_phandle, 0x1003, 0x0);
+    g_free(name);
+}
+
 static void create_fdt_rpmi_sysmsi(RISCVVirtState *s, uint64_t shmem_base,
                                    uint32_t rpmi_mbox_handle)
 {
@@ -1525,6 +1537,23 @@ static void create_fdt_rpmi_clock(RISCVVirtState *s, uint64_t shmem_base,
     g_free(name);
 }
 
+static void create_fdt_rpmi_mm(RISCVVirtState *s, uint64_t shmem_base,
+                               uint32_t rpmi_mbox_handle)
+{
+    uint32_t rpmi_mm_servicegrp = 0x000B;
+    MachineState *ms = MACHINE(s);
+    char *name;
+
+    name = g_strdup_printf("/soc/mailbox@%lx/mm@%lx", (long)shmem_base,
+                           (long)rpmi_mm_servicegrp);
+    qemu_fdt_add_subnode(ms->fdt, name);
+    qemu_fdt_setprop_string(ms->fdt, name, "compatible", "riscv,rpmi-mpxy-mm");
+    qemu_fdt_setprop_cells(ms->fdt, name, "mboxes", rpmi_mbox_handle,
+                           rpmi_mm_servicegrp);
+    qemu_fdt_setprop_cell(ms->fdt,  name, "riscv,sbi-mpxy-channel-id", 0x1003);
+    g_free(name);
+}
+
 static void create_fdt_rpmi_nodes(RISCVVirtState *s, int xport_id,
                                   uint64_t shmem_base, uint64_t db_base,
                                   uint32_t msi_phandle, uint32_t *phandle,
@@ -1541,9 +1570,11 @@ static void create_fdt_rpmi_nodes(RISCVVirtState *s, int xport_id,
         create_fdt_rpmi_suspend(s, shmem_base, rpmi_mbox_handle);
         create_fdt_rpmi_sysmsi(s, shmem_base, rpmi_mbox_handle);
         create_fdt_rpmi_clock(s, shmem_base, rpmi_mbox_handle);
+        create_fdt_rpmi_mm(s, shmem_base, rpmi_mbox_handle);
         create_fdt_sbi_mbox(s, phandle, msi_phandle, &mbox_phandle);
         create_fdt_sbi_mpxy_sysmsi(s, phandle, msi_phandle, mbox_phandle);
         create_fdt_sbi_mpxy_clk(s, mbox_phandle);
+        create_fdt_sbi_mpxy_mm(s, mbox_phandle);
     } else {
         /* Socket transport will have rest of the no system service groups */
         create_fdt_rpmi_hsm(s, shmem_base, rpmi_mbox_handle);
