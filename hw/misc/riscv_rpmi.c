@@ -231,10 +231,6 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
                       __func__, rctx);
     }
 
-    /* create MM group */
-    if (!add_mm_group(rctx, shm_addr, shm_sz))
-        info_report("mm grp create success");
-
     /* create HSM group */
     add_hsm_group(rctx, harts_mask, soc_xport_type, &hsm_ctx);
 
@@ -266,6 +262,10 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
 
         /* create rpmi clock service group */
         add_clock_group(rctx);
+
+        /* create MM group */
+        if (!add_mm_group(rctx, shm_addr, shm_sz))
+            info_report("mm grp create success");
     }
 
     /* save the context */
