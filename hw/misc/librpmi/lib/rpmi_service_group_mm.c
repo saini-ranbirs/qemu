@@ -50,6 +50,10 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 
 	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
 
+	if (response_datalen) {
+		*response_datalen = 5 * sizeof(rpmi_uint32_t);
+	}
+
 	return RPMI_SUCCESS;
 }
 
@@ -98,7 +102,7 @@ rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_lo,
 		return NULL;
 	}
 
-	sgmm->mma.mm_version = 0x10;
+	sgmm->mma.mm_version = 0x10000;
 	sgmm->mma.shmem_addr_lo = shmem_addr_lo;
 	sgmm->mma.shmem_addr_hi = shmem_addr_hi;
 	sgmm->mma.shmem_size = shmem_size;
