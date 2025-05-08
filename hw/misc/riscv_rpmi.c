@@ -39,7 +39,8 @@ struct rpmi_context *rpmi_contexts[MAX_RPMI_XPORTS];
 int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
                          uint32_t a2preq_qsz, uint32_t p2areq_qsz,
                          hwaddr fcm_addr, int fcm_sz,
-                         uint64_t harts_mask, uint32_t soc_xport_type);
+                         uint64_t harts_mask, uint32_t soc_xport_type,
+                         hwaddr mm_shm_addr, int mm_shm_sz);
 void add_sysmsi_group(struct rpmi_context *rctx);
 void add_sysreset_group(struct rpmi_context *rctx);
 int add_hsm_group(struct rpmi_context *rctx, uint64_t harts_mask,
@@ -187,7 +188,8 @@ struct rpmi_shmem_platform_ops rpmi_shmem_qemu_ops = {
 int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
                          uint32_t a2preq_qsz, uint32_t p2areq_qsz,
                          hwaddr fcm_addr, int fcm_sz,
-                         uint64_t harts_mask, uint32_t soc_xport_type)
+                         uint64_t harts_mask, uint32_t soc_xport_type,
+                         hwaddr mm_shm_addr, int mm_shm_sz)
 {
     char name[32];
     struct rpmi_shmem *rpmi_shmem, *rpmi_fastchan_shmem;
@@ -264,7 +266,7 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
         add_clock_group(rctx);
 
         /* create MM group */
-        if (!add_mm_group(rctx, shm_addr, shm_sz))
+        if (!add_mm_group(rctx, mm_shm_addr, mm_shm_sz))
             info_report("mm grp create success");
     }
 
@@ -280,8 +282,8 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
  */
 DeviceState *riscv_rpmi_create(hwaddr db_addr, hwaddr shm_addr, int shm_sz,
                                uint32_t a2preq_qsz, uint32_t p2areq_qsz,
-                               hwaddr fcm_addr, int fcm_sz,
-                               uint64_t harts_mask, uint32_t flags,
+                               hwaddr fcm_addr, int fcm_sz, uint64_t harts_mask,
+                               uint32_t flags, hwaddr mm_shm_addr, int mm_shm_sz,
                                MachineState *ms)
 {
     DeviceState *dev = qdev_new(TYPE_RISCV_RPMI);
@@ -300,23 +302,18 @@ DeviceState *riscv_rpmi_create(hwaddr db_addr, hwaddr shm_addr, int shm_sz,
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, db_addr);
 
     sprintf(name, "shm@%lx", shm_addr);
-    memory_region_init_ram(shm_mr, OBJECT(dev),
-                           name, shm_sz, &error_fatal);
-    memory_region_add_subregion(address_space_mem,
-                                shm_addr, shm_mr);
+    memory_region_init_ram(shm_mr, OBJECT(dev), name, shm_sz, &error_fatal);
+    memory_region_add_subregion(address_space_mem, shm_addr, shm_mr);
 
     if (fcm_sz) {
         sprintf(name, "fcm@%lx", fcm_addr);
-        memory_region_init_ram(fcm_mr, OBJECT(dev), name,
-                               fcm_sz, &error_fatal);
-        memory_region_add_subregion(address_space_mem,
-                                    fcm_addr, fcm_mr);
+        memory_region_init_ram(fcm_mr, OBJECT(dev), name, fcm_sz, &error_fatal);
+        memory_region_add_subregion(address_space_mem, fcm_addr, fcm_mr);
     }
 
-    if (!init_rpmi_svc_groups(shm_addr, shm_sz,
-                              a2preq_qsz, p2areq_qsz,
-                              fcm_addr, fcm_sz,
-                              harts_mask, flags)) {
+    if (!init_rpmi_svc_groups(shm_addr, shm_sz, a2preq_qsz, p2areq_qsz,
+                              fcm_addr, fcm_sz, harts_mask, flags, mm_shm_addr,
+                              mm_shm_sz)) {
         return NULL;
     }
 

@@ -6,13 +6,45 @@
 
 #include <librpmi.h>
 
-#undef DEBUG
+#define DEBUG  1
+
+#ifdef DEBUG
+
+#include "stdio.h"
+#include "stdarg.h"
+
+int rpmi_env_printf(const char *format, ...)
+{
+	va_list args;
+	char bfr[512];
+	int bytes_written;
+
+	va_start(args, format);
+
+	bytes_written = vsnprintf(bfr, sizeof(bfr), format, args);
+	fwrite(bfr, sizeof(char), bytes_written, stdout);
+
+	va_end(args);
+
+	return bytes_written;
+}
+#endif
 
 #ifdef DEBUG
 #define DPRINTF(msg...)		rpmi_env_printf(msg)
 #else
 #define DPRINTF(msg...)
 #endif
+
+#define RPMI_MM_MAJOR_VER  0x1UL
+#define RPMI_MM_MINOR_VER  0x0
+
+#define MM_MAJOR_VER_MASK   0xEFFF0000
+#define MM_MINOR_VER_MASK   0x0000FFFF
+#define MM_MAJOR_VER_SHIFT  16
+
+#define MM_MAJOR_VER(x)  (((x) & MM_MAJOR_VER_MASK) >> MM_MAJOR_VER_SHIFT)
+#define MM_MINOR_VER(x)  ((x) & MM_MINOR_VER_MASK)
 
 struct rpmi_mm_attr {
 	rpmi_uint32_t mm_version;
@@ -38,7 +70,8 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 	enum rpmi_error status;
 	struct rpmi_mm_group *sgmm = group->priv;
 
-	if (sgmm) {
+	if (sgmm && response_datalen) {
+		*response_datalen = 5 * sizeof(rpmi_uint32_t);
 		rsp[1] = rpmi_to_xe32(xport->is_be, sgmm->mma.mm_version);
 		rsp[2] = rpmi_to_xe32(xport->is_be, sgmm->mma.shmem_addr_lo);
 		rsp[3] = rpmi_to_xe32(xport->is_be, sgmm->mma.shmem_addr_hi);
@@ -50,9 +83,8 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 
 	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
 
-	if (response_datalen) {
-		*response_datalen = 5 * sizeof(rpmi_uint32_t);
-	}
+	DPRINTF("====================================================> "
+		"%s: received MM_GET_ATTRIBUTES call \n", __func__);
 
 	return RPMI_SUCCESS;
 }
@@ -65,7 +97,10 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 					   rpmi_uint16_t *response_datalen,
 					   rpmi_uint8_t *response_data)
 {
-	return RPMI_SUCCESS;
+	DPRINTF("====================================================> "
+		"%s: received MM_COMUNICATE call \n", __func__);
+
+	return RPMI_ERR_NO_DATA;
 }
 
 static struct rpmi_service rpmi_mm_services[RPMI_MM_SRV_ID_MAX] = {
@@ -87,8 +122,8 @@ static struct rpmi_service rpmi_mm_services[RPMI_MM_SRV_ID_MAX] = {
 };
 
 struct rpmi_service_group *
-rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_lo,
-			     rpmi_uint32_t shmem_addr_hi,
+rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_hi,
+			     rpmi_uint32_t shmem_addr_lo,
 			     rpmi_uint32_t shmem_size)
 {
 	struct rpmi_mm_group *sgmm;
@@ -102,9 +137,11 @@ rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_lo,
 		return NULL;
 	}
 
-	sgmm->mma.mm_version = 0x10000;
-	sgmm->mma.shmem_addr_lo = shmem_addr_lo;
+	sgmm->mma.mm_version =
+	    ((RPMI_MM_MAJOR_VER << MM_MAJOR_VER_SHIFT) & MM_MAJOR_VER_MASK) |
+	    ((RPMI_MM_MINOR_VER & MM_MINOR_VER_MASK));
 	sgmm->mma.shmem_addr_hi = shmem_addr_hi;
+	sgmm->mma.shmem_addr_lo = shmem_addr_lo;
 	sgmm->mma.shmem_size = shmem_size;
 
 	group = &sgmm->group;
@@ -119,6 +156,9 @@ rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_lo,
 	group->process_events = NULL;
 	group->lock = rpmi_env_alloc_lock();
 	group->priv = sgmm;
+
+	DPRINTF("====================================================> "
+		"%s: received call 0x%x \n", __func__, shmem_size);
 
 	return group;
 }

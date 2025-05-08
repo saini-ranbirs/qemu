@@ -67,6 +67,7 @@ struct RISCVVirtState {
     struct GPEXHost *gpex_host;
     OnOffAuto iommu_sys;
     uint32_t sysmsi_gsi_base;
+    char *secure_var;
 };
 
 enum {
@@ -85,6 +86,7 @@ enum {
     VIRT_RPMI_DOORBELL,
     VIRT_RPMI_SOC_SHMEM,
     VIRT_RPMI_SOC_DOORBELL,
+    VIRT_MM_SHMEM,
     VIRT_VIRTIO,
     VIRT_FW_CFG,
     VIRT_IMSIC_M,

@@ -5,15 +5,15 @@
 #include "target/riscv/cpu.h"
 #include "librpmi.h"
 
-int add_mm_group(struct rpmi_context *rctx, hwaddr shm_addr, int shm_sz);
+int add_mm_group(struct rpmi_context *rctx, hwaddr mm_shm_addr, int mm_shm_sz);
 
-int add_mm_group(struct rpmi_context *rctx, hwaddr shm_addr, int shm_sz)
+int add_mm_group(struct rpmi_context *rctx, hwaddr mm_shm_addr, int mm_shm_sz)
 {
     struct rpmi_service_group *grp;
 
     /* Create and add MM service group*/
-    grp = rpmi_service_group_mm_create(shm_addr & 0xFFFFFFFF, shm_addr >> 32,
-                                       shm_sz);
+    grp = rpmi_service_group_mm_create(mm_shm_addr >> 32,
+                                       mm_shm_addr & 0xFFFFFFFF, mm_shm_sz);
     if (!grp) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: mm grp create failed\n ", __func__);
         return -1;

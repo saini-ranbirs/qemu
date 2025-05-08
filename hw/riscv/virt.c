@@ -106,6 +106,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_RPMI_DOORBELL] = { 0x10230000,       0x10000 },
     [VIRT_RPMI_SOC_SHMEM] = { 0x10240000,      0xF000 },
     [VIRT_RPMI_SOC_DOORBELL] = { 0x1024F000,   0x1000 },
+    [VIRT_MM_SHMEM] =     { 0x10300000,      0x200000 },
     [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
     [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
@@ -1580,9 +1581,6 @@ static void create_fdt_rpmi_nodes(RISCVVirtState *s, int xport_id,
         create_fdt_rpmi_hsm(s, shmem_base, rpmi_mbox_handle);
         create_fdt_rpmi_cppc(s, shmem_base, rpmi_mbox_handle);
     }
-
-    /* Keeping common - yet to understand diff b/w SoC vs Socket xport */
-    //create_fdt_rpmi_mm(s, shmem_base, rpmi_mbox_handle);
 }
 
 static void finalize_fdt(RISCVVirtState *s)
@@ -1591,11 +1589,11 @@ static void finalize_fdt(RISCVVirtState *s)
     uint32_t phandle = 1, irq_mmio_phandle = 1, msi_pcie_phandle = 1;
     uint32_t irq_pcie_phandle = 1, irq_virtio_phandle = 1;
     uint32_t iommu_sys_phandle = 1, *cpu_phandles;
-    uint32_t a2preq_qsz, p2areq_qsz;
+    uint32_t a2preq_qsz, p2areq_qsz, mm_shm_sz;
     int i, base_hartid = -1, hart_count = 0;
     int rpmi_xports = riscv_socket_count(ms) + 1;
     bool soc_xport_type = 0;
-    uint64_t harts_mask;
+    uint64_t harts_mask, mm_shm_base;
 
     cpu_phandles = g_new0(uint32_t, ms->smp.cpus);
 
@@ -1670,10 +1668,11 @@ static void finalize_fdt(RISCVVirtState *s)
                                   soc_xport_type,
                                   a2preq_qsz, p2areq_qsz,
                                   db_sz);
-            riscv_rpmi_create(db_base, shm_base, shm_sz,
-                              a2preq_qsz, p2areq_qsz,
-                              fcm_base, fcm_sz,
-                              harts_mask, soc_xport_type, ms);
+            mm_shm_base = s->memmap[VIRT_MM_SHMEM].base;
+            mm_shm_sz = s->memmap[VIRT_MM_SHMEM].size;
+            riscv_rpmi_create(db_base, shm_base, shm_sz, a2preq_qsz, p2areq_qsz,
+                              fcm_base, fcm_sz, harts_mask, soc_xport_type,
+                              mm_shm_base, mm_shm_sz, ms);
         }
     } else {
         create_fdt_reset(s, virt_memmap, &phandle);
@@ -2078,6 +2077,86 @@ static void virt_machine_done(Notifier *notifier, void *data)
     }
 }
 
+static void memdump(const void *src, size_t count)
+{
+#define BFR_DATA_LIMIT  16
+
+	const char *temp = src;
+	unsigned char bfr_data[BFR_DATA_LIMIT];
+	size_t bfr_counter, bfr_counter_limit;
+	size_t remaining = count, loop_count = 0;
+
+	info_report("Data Size : %06lu", count);
+
+	while (remaining) {
+		bfr_counter = 0;
+
+		(remaining >= BFR_DATA_LIMIT) ?
+		    (bfr_counter_limit = BFR_DATA_LIMIT) :
+		    (bfr_counter_limit = remaining);
+
+		while (bfr_counter < bfr_counter_limit) {
+			bfr_data[bfr_counter] = *(temp + bfr_counter);
+			bfr_counter++;
+		}
+
+		/* For simplicity, fill rest with ZERO's if required */
+		while (bfr_counter < BFR_DATA_LIMIT) {
+			bfr_data[bfr_counter] = 0x00;
+			bfr_counter++;
+		}
+
+		if (loop_count < 7) {
+		info_report("0x%p: %06lu "
+			"%02x%02x %02x%02x %02x%02x %02x%02x "
+			"%02x%02x %02x%02x %02x%02x %02x%02x",
+			temp, count - remaining,
+			bfr_data[1], bfr_data[0], bfr_data[3], bfr_data[2],
+			bfr_data[5], bfr_data[4], bfr_data[7], bfr_data[6],
+			bfr_data[9], bfr_data[8], bfr_data[11], bfr_data[10],
+			bfr_data[13], bfr_data[12], bfr_data[15], bfr_data[14]);
+		}
+
+		temp = temp + bfr_counter_limit;
+		remaining = remaining - bfr_counter_limit;
+		loop_count++;
+	}
+
+	info_report("0x%p: %06lu", temp, count - remaining);
+}
+
+static int dump_data_from_secure_variable_fd(const char *svar_fd)
+{
+    int fd;
+    size_t filesize, bytes_read = 0;
+    uint8_t svar_data[786432];
+
+    fd = open(svar_fd, O_RDONLY);
+    if (fd < 0) {
+        error_report("secure-var: '%s' open error", svar_fd);
+        return -1;
+    }
+
+    filesize = lseek(fd, 0, SEEK_END);
+    info_report("secure-var: '%s' size %ld", svar_fd, filesize);
+    if (filesize != sizeof(svar_data)) {
+         error_report("secure-var: '%s' size mismatch: %ld vs %ld bytes",
+                      svar_fd, filesize, sizeof(svar_data));
+         return -2;
+    }
+
+    lseek(fd, 0, SEEK_SET);
+    while (bytes_read != filesize) {
+        bytes_read += read(fd, svar_data + bytes_read, filesize);
+    }
+
+    memdump(svar_data, filesize);
+
+    close(fd);
+
+    return 0;
+}
+
 static void virt_machine_init(MachineState *machine)
 {
     const MemMapEntry *memmap = virt_memmap;
@@ -2317,6 +2396,8 @@ static void virt_machine_init(MachineState *machine)
         sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu_sys), &error_fatal);
     }
 
+    dump_data_from_secure_variable_fd(s->secure_var);
+
     s->power_down.notify = virt_power_down;
     qemu_register_powerdown_notifier(&s->power_down);
 
@@ -2541,6 +2622,15 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
+static void virt_machine_set_secure_variable(Object *obj, const char *value,
+                                             Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    g_free(s->secure_var);
+    s->secure_var = g_strdup(value);
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2626,6 +2716,11 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "reri",
                                           "Set on/off to enable/disable "
                                           "RERI support");
+
+    object_class_property_add_str(oc, "secure-var", NULL,
+                                  virt_machine_set_secure_variable);
+    object_class_property_set_description(oc, "secure-var",
+                                          "Secure Variable FD file");
 }
 
 static const TypeInfo virt_machine_typeinfo = {

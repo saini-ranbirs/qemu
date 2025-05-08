@@ -1141,15 +1141,15 @@ void rpmi_service_group_hsm_destroy(struct rpmi_service_group *group);
 /**
  * @brief Create a management mode (MM) service group instance
  *
- * @param[in] shmem_addr_lo	Shared Memory Address low 32 bits
  * @param[in] shmem_addr_hi	Shared Memory Address high 32 bits
+ * @param[in] shmem_addr_lo	Shared Memory Address low 32 bits
  * @param[in] shmem_size	Size of the Shared Memory
  * @return pointer to RPMI service group instance upon success
  *         NULL upon failure
  */
 struct rpmi_service_group *
-rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_lo,
-			     rpmi_uint32_t shmem_addr_hi,
+rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_hi,
+			     rpmi_uint32_t shmem_addr_lo,
 			     rpmi_uint32_t shmem_size);
 /**
  * @brief Destroy (or free) a management mode (HSM) service group instance
