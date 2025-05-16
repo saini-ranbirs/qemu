@@ -4,14 +4,8 @@
  */
 
 #include <librpmi.h>
-
-#define DEBUG  1
-
-#if defined(DEBUG) && DEBUG
-#define DPRINTF(msg...)		rpmi_env_printf(msg)
-#else
-#define DPRINTF(msg...)
-#endif
+#include "librpmi_internal.h"
+#include "mm/mm_variable.h"
 
 #define RPMI_MM_MAJOR_VER   (0x1UL)
 #define RPMI_MM_MINOR_VER   0x0
@@ -33,6 +27,23 @@ struct rpmi_mm_attr {
 struct rpmi_mm_group {
 	struct rpmi_mm_attr mma;
 	struct rpmi_service_group group;
+};
+
+struct rpmi_mm_comm_req {
+	rpmi_uint32_t idata_off;
+	rpmi_uint32_t idata_len;
+	rpmi_uint32_t odata_off;
+	rpmi_uint32_t odata_len;
+};
+
+struct rpmi_mm_comm_header_guid {
+	enum efi_mm_header_guid name;
+	struct efi_guid guid;
+};
+
+struct rpmi_mm_comm_header_guid mm_comm_hdr_guid_lut[] = {
+	[0] { EFI_MM_HDR_GUID_NONE, EFI_MM_HDR_GUID_NONE_DATA },
+	[1] { EFI_MM_VAR_PROTOCOL_GUID, EFI_MM_VAR_PROTOCOL_GUID_DATA },
 };
 
 static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
@@ -63,6 +74,34 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 	return RPMI_SUCCESS;
 }
 
+#define STRING_CASE(x)  case x: return #x
+
+static const char *get_hdr_guid_string(enum efi_mm_header_guid guid)
+{
+	switch (guid) {
+		STRING_CASE(EFI_MM_VAR_PROTOCOL_GUID);
+
+	default:
+		STRING_CASE(EFI_MM_HDR_GUID_UNSUPPORTED);
+	}
+}
+
+static inline int get_guid_index(const rpmi_uint8_t *guid,
+				 rpmi_uint16_t msg_len)
+{
+	rpmi_uint8_t i;
+
+	for (i = 1; i < array_size(mm_comm_hdr_guid_lut); i++) {
+		if (rpmi_env_memcmp((void *)guid, &mm_comm_hdr_guid_lut[i].guid,
+				    msg_len))
+			continue;
+
+		return i;
+	}
+
+	return 0;
+}
+
 static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 					   struct rpmi_service *service,
 					   struct rpmi_transport *xport,
@@ -71,7 +110,63 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 					   rpmi_uint16_t *response_datalen,
 					   rpmi_uint8_t *response_data)
 {
-	return RPMI_ERR_NO_DATA;
+	struct efi_mm_comm_header *mm_comm_hdr, *msg;
+	rpmi_uint32_t *rsp = (void *)response_data;
+	struct rpmi_mm_group *sgmm = group->priv;
+	rpmi_uint64_t status = RPMI_ERR_NO_DATA;
+	struct rpmi_mm_comm_req *mmc_req;
+	rpmi_uint64_t msg_len, mm_addr;
+	rpmi_uint8_t index, *buf;
+
+	if (!request_data)
+		return RPMI_ERR_NO_DATA;
+
+	DPRINTF("ENTER");
+
+	mmc_req = (struct rpmi_mm_comm_req *)request_data;
+	mm_addr = sgmm->mma.shmem_addr_hi;
+	mm_addr = (mm_addr << 32) | sgmm->mma.shmem_addr_lo;
+	mm_addr = mm_addr + mmc_req->idata_off;
+
+	buf = rpmi_env_zalloc(sizeof(struct efi_mm_comm_header));
+	rpmi_env_readb(mm_addr, buf, sizeof(struct efi_mm_comm_header));
+
+	mm_comm_hdr = (struct efi_mm_comm_header *)buf;
+	msg_len =
+	    offsetof(struct efi_mm_comm_header, data) + mm_comm_hdr->msg_len;
+	rpmi_env_free(buf);
+
+	msg = rpmi_env_zalloc(msg_len);
+	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)msg, msg_len);
+
+	index = get_guid_index((rpmi_uint8_t *)&msg->hdr_guid,
+			       sizeof(msg->hdr_guid));
+
+	switch (mm_comm_hdr_guid_lut[index].name) {
+	case EFI_MM_VAR_PROTOCOL_GUID:
+		DPRINTF("Handling header %s",
+			get_hdr_guid_string(mm_comm_hdr_guid_lut[index].name));
+		status = mm_variable_handler(&msg->data, msg_len);
+		rpmi_env_writeb(mm_addr + mmc_req->odata_off,
+				(rpmi_uint8_t *)msg, msg_len);
+		break;
+
+	default:
+		DPRINTF("Header guid %s",
+			get_hdr_guid_string(mm_comm_hdr_guid_lut[index].name));
+		status = RPMI_ERR_NO_DATA;
+		msg_len = 0;
+		break;
+	}
+
+	*response_datalen = 2 * sizeof(rpmi_uint32_t);
+	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
+	rsp[1] = rpmi_to_xe32(xport->is_be, msg_len);
+
+	DPRINTF("EXIT response length = %d status = %ld", rsp[1], status);
+
+	rpmi_env_free(msg);
+	return status;
 }
 
 /* Keep entry index same as service_id value */
@@ -128,6 +223,8 @@ struct rpmi_service_group
 	group->lock = rpmi_env_alloc_lock();
 	group->priv = sgmm;
 
+	mm_variable_init();
+
 	return group;
 }
 
@@ -137,6 +234,8 @@ void rpmi_service_group_mm_destroy(struct rpmi_service_group *group)
 		DPRINTF("invalid parameters");
 		return;
 	}
+
+	mm_variable_term();
 
 	rpmi_env_free(group->priv);
 }
