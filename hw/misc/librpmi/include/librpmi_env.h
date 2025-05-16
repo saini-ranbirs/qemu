@@ -425,7 +425,28 @@ static inline rpmi_uint32_t rpmi_to_xe32(rpmi_bool_t is_be, rpmi_uint32_t val)
  * @param[in] addr	64-bit address
  * @param[in] val	4-byte data to write
  */
+void rpmi_env_readw(rpmi_uint64_t addr, rpmi_uint32_t *val, rpmi_uint32_t len);
+void rpmi_env_readb(rpmi_uint64_t addr, rpmi_uint8_t *val, rpmi_uint32_t len);
+
+/** @} */
+
+/******************************************************************************/
+
+/**
+ * \defgroup MMIO_ENV MMIO Read/Write Environment Functions
+ * @brief System-wide memory mapped input/output (MMIO) read/write functions
+ * to be implemented by the platform firmware.
+ * @{
+ */
+
+/**
+ * @brief Write 4-bytes to address in little-endian byte-order
+ *
+ * @param[in] addr	64-bit address
+ * @param[in] val	4-byte data to write
+ */
 void rpmi_env_writel(rpmi_uint64_t addr, rpmi_uint32_t val);
+void rpmi_env_writeb(rpmi_uint64_t addr, rpmi_uint8_t *source, rpmi_uint32_t len);
 
 /** @} */
 
