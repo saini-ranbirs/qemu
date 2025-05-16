@@ -58,6 +58,19 @@
 
 #define RPMI_ROUNDDOWN(a, b) ((a) / (b) * (b))
 
+//
+// Basical data type definitions introduced in UEFI.
+//
+typedef struct {
+  rpmi_uint32_t  data1;
+  rpmi_uint16_t  data2;
+  rpmi_uint16_t  data3;
+  rpmi_uint8_t   data4[8];
+} EFI_GUID;
+
+#define EFI_SUCCESS 0
+#define EFI_UNSUPPORTED 0x8000000000000001ull
+//
 #endif
 
 

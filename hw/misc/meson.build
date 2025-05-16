@@ -53,6 +53,7 @@ specific_ss.add(when: 'CONFIG_RISCV_RPMI', if_true: files(
   'librpmi/lib/rpmi_service_group_sysmsi.c',
   'librpmi/lib/rpmi_service_group_sysreset.c',
   'librpmi/lib/rpmi_service_group_syssusp.c',
+  'librpmi/lib/rpmi_mm_variable.c',
   'librpmi/lib/rpmi_shmem.c',
   'librpmi/lib/rpmi_transport.c',
   'librpmi/lib/rpmi_transport_shmem.c'))
