@@ -1487,10 +1487,22 @@ static void create_fdt_sbi_mpxy_mm(RISCVVirtState *s, uint32_t mpxy_mbox_phandle
 {
     char *name;
     MachineState *mc = MACHINE(s);
+    MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion *rpmi_mm_shmem = g_new(MemoryRegion, 1);
+
+    /* MM shared memory */
+    memory_region_init_ram(rpmi_mm_shmem, NULL, "riscv.rpmi-mm.shmem",
+                           s->memmap[VIRT_MM_SHMEM].size, &error_fatal);
+    memory_region_add_subregion(system_memory,
+                                s->memmap[VIRT_MM_SHMEM].base,
+                                rpmi_mm_shmem);
+
 
     name = g_strdup_printf("/soc/sbi-mpxy-mm");
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "riscv,rpmi-mm");
+    qemu_fdt_setprop_sized_cells(mc->fdt, name, "reg",
+        2, s->memmap[VIRT_MM_SHMEM].base, 2, s->memmap[VIRT_MM_SHMEM].size);
     qemu_fdt_setprop_cells(mc->fdt, name, "mboxes", mpxy_mbox_phandle, 0x1003, 0x0);
     g_free(name);
 }
