@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c) 2025 Ventana Micro Systems Inc.
  */
 
 #include <librpmi.h>
+#include "librpmi_internal.h"
+#include "mm_variable.h"
 
 #define DEBUG  1
 
@@ -12,31 +13,8 @@
 
 #include "stdio.h"
 #include "stdarg.h"
-#endif
 #include "stddef.h"
 #include "string.h"
-#include "librpmi_internal.h"
-
-///
-/// To avoid confusion in interpreting frames, the communication buffer should always
-/// begin with EFI_MM_COMMUNICATE_HEADER
-///
-typedef struct efi_mm_communication_header {
-  ///
-  /// Allows for disambiguation of the message format.
-  ///
-  EFI_GUID    header_guid;
-  ///
-  /// Describes the size of Data (in bytes) and does not include the size of the header.
-  ///
-  rpmi_uint64_t       message_length;
-  ///
-  /// Designates an array of bytes that is MessageLength in size.
-  ///
-  rpmi_uint8_t       data[1];
-} EFI_MM_COMMUNICATE_HEADER;
-
-rpmi_uint8_t g_efi_smm_variable_protocol_guid[16] = { 0x33, 0xd5, 0x32, 0xed, 0xe6, 0x99, 0x09, 0x42, 0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7 };
 
 int rpmi_env_printf(const char *format, ...)
 {
@@ -54,10 +32,12 @@ int rpmi_env_printf(const char *format, ...)
 	return bytes_written;
 }
 
-#ifdef DEBUG
 #define DPRINTF(msg...)		rpmi_env_printf(msg)
+
 #else
+
 #define DPRINTF(msg...)
+
 #endif
 
 #define RPMI_MM_MAJOR_VER  0x1UL
@@ -81,6 +61,107 @@ struct rpmi_mm_group {
 	struct rpmi_mm_attr mma;
 	struct rpmi_service_group group;
 };
+
+struct rpmi_mm_comm_req {
+	rpmi_uint32_t idata_off;
+	rpmi_uint32_t idata_len;
+	rpmi_uint32_t odata_off;
+	rpmi_uint32_t odata_len;
+};
+
+enum mm_header_guid {
+	EFI_SMM_HEADER_GUID_NONE,
+	EFI_SMM_VARIABLE_PROTOCOL_GUID,
+};
+
+#define EFI_SMM_HEADER_GUID_NONE_DATA	\
+	{ 0x00000000, 0x0000, 0x0000,	\
+	  { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } }
+
+#define EFI_SMM_VARIABLE_PROTOCOL_GUID_DATA	\
+	{ 0xed32d533, 0x99e6, 0x4209,	\
+	  { 0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7 } }
+
+struct rpmi_mm_hdr_guid {
+	enum mm_header_guid name;
+	EFI_GUID guid;
+};
+
+struct rpmi_mm_hdr_guid hguid_lut[] = {
+	[0] { EFI_SMM_HEADER_GUID_NONE, EFI_SMM_HEADER_GUID_NONE_DATA },
+	[1] { EFI_SMM_VARIABLE_PROTOCOL_GUID,
+	      EFI_SMM_VARIABLE_PROTOCOL_GUID_DATA },
+};
+
+/* Defined in EDK2 MdePkg/Include/Protocol/MmCommunication.h */
+
+/**
+ * struct efi_mm_communicate_header - Header used for SMM variable communication
+
+ * @hdr_guid:  header use for disambiguation of content
+ * @msg_len:   length of the message. Does not include the size of the header
+ * @data:      payload of the message
+ *
+ * Defined in EDK2 as EFI_MM_COMMUNICATE_HEADER.
+ * To avoid confusion in interpreting frames, the communication buffer should
+ * always begin with efi_mm_communicate_header.
+ */
+struct efi_mm_communicate_header {
+	EFI_GUID hdr_guid;
+	rpmi_uint64_t msg_len;
+	rpmi_uint8_t data[];
+};
+
+#define MM_COMMUNICATE_HEADER_SIZE (sizeof(struct efi_mm_communicate_header))
+
+static void memdump(const void *src, size_t count)
+{
+#define BFR_DATA_LIMIT  16
+
+	const char *temp = src;
+	unsigned char bfr_data[BFR_DATA_LIMIT];
+	size_t bfr_counter, bfr_counter_limit;
+	size_t remaining = count, loop_count = 0;
+
+	if (!remaining)
+		return;
+
+	while (remaining) {
+		bfr_counter = 0;
+
+		(remaining >= BFR_DATA_LIMIT) ?
+		    (bfr_counter_limit = BFR_DATA_LIMIT) :
+		    (bfr_counter_limit = remaining);
+
+		while (bfr_counter < bfr_counter_limit) {
+			bfr_data[bfr_counter] = *(temp + bfr_counter);
+			bfr_counter++;
+		}
+
+		/* For simplicity, fill rest with ZERO's if required */
+		while (bfr_counter < BFR_DATA_LIMIT) {
+			bfr_data[bfr_counter] = 0x00;
+			bfr_counter++;
+		}
+
+		if (loop_count < 7) {
+		DPRINTF("\n%06lu "
+			"%02X%02X %02X%02X %02X%02X %02X%02X "
+			"%02X%02X %02X%02X %02X%02X %02X%02X",
+			count - remaining,
+			bfr_data[1], bfr_data[0], bfr_data[3], bfr_data[2],
+			bfr_data[5], bfr_data[4], bfr_data[7], bfr_data[6],
+			bfr_data[9], bfr_data[8], bfr_data[11], bfr_data[10],
+			bfr_data[13], bfr_data[12], bfr_data[15], bfr_data[14]);
+		}
+
+		temp = temp + bfr_counter_limit;
+		remaining = remaining - bfr_counter_limit;
+		loop_count++;
+	}
+
+	DPRINTF("\n%06lu\n", count - remaining);
+}
 
 static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 					      struct rpmi_service *service,
@@ -113,6 +194,20 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 	return RPMI_SUCCESS;
 }
 
+static int get_comm_header_guid(const rpmi_uint8_t *msg, rpmi_uint16_t msg_len)
+{
+	rpmi_uint8_t i;
+
+	for (i = 1; i < array_size(hguid_lut); i++) {
+		if (memcmp(msg, &hguid_lut[i].guid, msg_len))
+			continue;
+
+		return i;
+	}
+
+	return 0;
+}
+
 static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 					   struct rpmi_service *service,
 					   struct rpmi_transport *xport,
@@ -121,44 +216,71 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 					   rpmi_uint16_t *response_datalen,
 					   rpmi_uint8_t *response_data)
 {
-	rpmi_uint32_t *req = (void *)request_data;
+	struct rpmi_mm_comm_req *mmc_req;
 	struct rpmi_mm_group *sgmm = group->priv;
 	rpmi_uint8_t *buf;
-	rpmi_uint32_t mm_msg_length;
+	rpmi_uint32_t msg_len;
 	rpmi_uint64_t  status = RPMI_ERR_NO_DATA;
-	EFI_MM_COMMUNICATE_HEADER *mm_comm_header, *message;
+	struct efi_mm_communicate_header *mm_comm_hdr, *msg;
+	rpmi_uint64_t mm_addr;
+	rpmi_uint8_t index;
+	rpmi_uint32_t *rsp = (void *)response_data;
 
 	DPRINTF("====================================================> "
-		"%s: received MM_COMUNICATE call \n", __func__);
+		"%s: received MM_COMMUNICATE call \n", __func__);
 
-	if (!req)
+	if (!request_data)
 		return RPMI_ERR_NO_DATA;
 
-	rpmi_uint64_t mm_address = sgmm->mma.shmem_addr_hi;
-	mm_address = (mm_address << 32 | sgmm->mma.shmem_addr_lo) + req[0];
-	buf = rpmi_env_zalloc(sizeof(EFI_MM_COMMUNICATE_HEADER));
-	rpmi_env_readb(mm_address, buf, sizeof(EFI_MM_COMMUNICATE_HEADER));
+	mmc_req = (struct rpmi_mm_comm_req *)request_data;
+	mm_addr = sgmm->mma.shmem_addr_hi;
+	mm_addr = (mm_addr << 32) | sgmm->mma.shmem_addr_lo;
+	mm_addr = mm_addr + mmc_req->idata_off;
 
-	mm_comm_header = (EFI_MM_COMMUNICATE_HEADER *)buf;
-	mm_msg_length = offsetof(EFI_MM_COMMUNICATE_HEADER, data) + mm_comm_header->message_length;
+	DPRINTF("idata_off = 0x%x idata_len = 0x%x \n", mmc_req->idata_off, mmc_req->idata_len);
+	DPRINTF("odata_off = 0x%x odata_len = 0x%x \n", mmc_req->odata_off, mmc_req->odata_len);
+
+	buf = rpmi_env_zalloc(sizeof(struct efi_mm_communicate_header));
+	rpmi_env_readb(mm_addr, buf, sizeof(struct efi_mm_communicate_header));
+
+	mm_comm_hdr = (struct efi_mm_communicate_header *)buf;
+	msg_len = offsetof(struct efi_mm_communicate_header, data) +
+		  mm_comm_hdr->msg_len;
 	rpmi_env_free(buf);
-	message = rpmi_env_zalloc(mm_msg_length);
-	rpmi_env_readb(mm_address, (rpmi_uint8_t *)message, mm_msg_length);
-	DPRINTF("====================================================> "
-		"%s: mm_msg_length=%d \n", __func__, mm_msg_length);
 
-	rpmi_uint8_t *tmp = (rpmi_uint8_t *)message;
-	for (int i = 0; i < 16; i++) {
+	msg = rpmi_env_zalloc(msg_len);
+	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)msg, msg_len);
 	DPRINTF("====================================================> "
-		"%s: message[%d]=0x%x \n", __func__, i, tmp[i]);
+		"%s: msg_len = %d \n", __func__, msg_len);
+
+	memdump(msg, 0);//memdump(msg, HEADER_GUID_SIZE);
+
+	index = get_comm_header_guid((rpmi_uint8_t *)msg, sizeof(EFI_GUID));
+
+	switch (hguid_lut[index].name) {
+	case EFI_SMM_VARIABLE_PROTOCOL_GUID:
+		status =
+		    mm_variable_handler((rpmi_uint8_t *)&msg->data, &msg_len);
+		rpmi_env_writeb(mm_addr + mmc_req->odata_off,
+				(rpmi_uint8_t *)msg, msg_len);
+		break;
+
+	default:
+		DPRINTF("====================================================> "
+			"%s: header guid !EFI_SMM_VARIABLE_PROTOCOL_GUID \n", __func__);
+		status = RPMI_ERR_NO_DATA;
+		msg_len = 0;
+		break;
 	}
 
-	if (!memcmp(&g_efi_smm_variable_protocol_guid, &message->header_guid, sizeof(EFI_GUID))) {
-		status = rpmi_mm_variable_handler((rpmi_uint8_t *)&message->data, &mm_msg_length);
-		rpmi_env_writeb(mm_address, (rpmi_uint8_t *)message, mm_msg_length);
-	}
+	*response_datalen = 2 * sizeof(rpmi_uint32_t);
+	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
+	rsp[1] = rpmi_to_xe32(xport->is_be, msg_len);
 
-	rpmi_env_free(message);
+	DPRINTF("====================================================> "
+		"%s: rsp_len = %d status = %ld\n", __func__, rsp[1], status);
+
+	rpmi_env_free(msg);
 	return status;
 }
 
@@ -215,6 +337,8 @@ rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_hi,
 	group->process_events = NULL;
 	group->lock = rpmi_env_alloc_lock();
 	group->priv = sgmm;
+
+	mm_variable_init();
 
 	DPRINTF("====================================================> "
 		"%s: received call 0x%x \n", __func__, shmem_size);

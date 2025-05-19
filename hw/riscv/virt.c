@@ -62,6 +62,9 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/misc/riscv_rpmi.h"
 
+char *riscv_var_fd;
+int dump_data_from_secure_variable_fd(const char *svar_fd);
+
 /* KVM AIA only supports APLIC MSI. APLIC Wired is always emulated by QEMU. */
 static bool virt_use_kvm_aia_aplic_imsic(RISCVVirtAIAType aia_type)
 {
@@ -2119,7 +2122,7 @@ static void memdump(const void *src, size_t count)
 		}
 
 		if (loop_count < 7) {
-		info_report("0x%p: %06lu "
+		info_report("%p: %06lu "
 			"%02x%02x %02x%02x %02x%02x %02x%02x "
 			"%02x%02x %02x%02x %02x%02x %02x%02x",
 			temp, count - remaining,
@@ -2134,10 +2137,10 @@ static void memdump(const void *src, size_t count)
 		loop_count++;
 	}
 
-	info_report("0x%p: %06lu", temp, count - remaining);
+	info_report("%p: %06lu", temp, count - remaining);
 }
 
-static int dump_data_from_secure_variable_fd(const char *svar_fd)
+int dump_data_from_secure_variable_fd(const char *svar_fd)
 {
     int fd;
     size_t filesize, bytes_read = 0;
@@ -2409,6 +2412,7 @@ static void virt_machine_init(MachineState *machine)
     }
 
     dump_data_from_secure_variable_fd(s->secure_var);
+    riscv_var_fd = s->secure_var;
 
     s->power_down.notify = virt_power_down;
     qemu_register_powerdown_notifier(&s->power_down);

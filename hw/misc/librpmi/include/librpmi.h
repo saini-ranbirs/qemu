@@ -1592,5 +1592,4 @@ rpmi_service_group_sysmsi_create(rpmi_uint32_t num_msi,
 
 /** @} */
 
-enum rpmi_error rpmi_mm_variable_handler(rpmi_uint8_t *comm_buffer, rpmi_uint32_t *comm_buffer_size);
 #endif  /* __LIBRPMI_H__ */

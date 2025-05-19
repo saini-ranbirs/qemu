@@ -13,7 +13,9 @@ lib-objs-y += rpmi_service_group_syssusp.o
 lib-objs-y += rpmi_service_group_clock.o
 lib-objs-y += rpmi_service_group_cppc.o
 lib-objs-y += rpmi_service_group_mm.o
-lib-objs-y += rpmi_mm_variable.o
 lib-objs-y += rpmi_shmem.o
 lib-objs-y += rpmi_transport.o
 lib-objs-y += rpmi_transport_shmem.o
+
+lib-objs-y += mm_variable.o
+
