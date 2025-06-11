@@ -56,7 +56,8 @@ specific_ss.add(when: 'CONFIG_RISCV_RPMI', if_true: files(
   'librpmi/lib/rpmi_shmem.c',
   'librpmi/lib/rpmi_transport.c',
   'librpmi/lib/rpmi_transport_shmem.c',
-  'librpmi/lib/mm_variable.c'))
+  'librpmi/lib/mm_variable.c',
+  'librpmi/lib/EDK2RT_VariableParsing.c'))
 
 subdir('macio')
 

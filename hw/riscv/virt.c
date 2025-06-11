@@ -63,7 +63,7 @@
 #include "hw/misc/riscv_rpmi.h"
 
 char *riscv_var_fd;
-int dump_data_from_secure_variable_fd(const char *svar_fd);
+int get_data_from_secure_variable_fd(uint8_t *data);
 
 /* KVM AIA only supports APLIC MSI. APLIC Wired is always emulated by QEMU. */
 static bool virt_use_kvm_aia_aplic_imsic(RISCVVirtAIAType aia_type)
@@ -2092,7 +2092,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
     }
 }
 
-static void memdump(const void *src, size_t count)
+static void virt_memdump(const void *src, size_t count)
 {
 #define BFR_DATA_LIMIT  16
 
@@ -2100,8 +2100,9 @@ static void memdump(const void *src, size_t count)
 	unsigned char bfr_data[BFR_DATA_LIMIT];
 	size_t bfr_counter, bfr_counter_limit;
 	size_t remaining = count, loop_count = 0;
+	static size_t counter = 0;
 
-	info_report("Data Size : %06lu", count);
+	info_report("RS Data Size  : %06lu", counter++); return;
 
 	while (remaining) {
 		bfr_counter = 0;
@@ -2121,7 +2122,7 @@ static void memdump(const void *src, size_t count)
 			bfr_counter++;
 		}
 
-		if (loop_count < 7) {
+		if (loop_count < 25) {
 		info_report("%p: %06lu "
 			"%02x%02x %02x%02x %02x%02x %02x%02x "
 			"%02x%02x %02x%02x %02x%02x %02x%02x",
@@ -2140,32 +2141,33 @@ static void memdump(const void *src, size_t count)
 	info_report("%p: %06lu", temp, count - remaining);
 }
 
-int dump_data_from_secure_variable_fd(const char *svar_fd)
+int get_data_from_secure_variable_fd(uint8_t *svar_data)
 {
     int fd;
     size_t filesize, bytes_read = 0;
-    uint8_t svar_data[786432];
 
-    fd = open(svar_fd, O_RDONLY);
+    fd = open(riscv_var_fd, O_RDONLY);
     if (fd < 0) {
-        error_report("secure-var: '%s' open error", svar_fd);
+        error_report("secure-var: '%s' open error", riscv_var_fd);
         return -1;
     }
 
-    filesize = lseek(fd, 0, SEEK_END);
-    info_report("secure-var: '%s' size %ld", svar_fd, filesize);
+    /*filesize = lseek(fd, 0, SEEK_END);
+    info_report("secure-var: '%s' size %ld", riscv_var_fd, filesize);
     if (filesize != sizeof(svar_data)) {
          error_report("secure-var: '%s' size mismatch: %ld vs %ld bytes",
-                      svar_fd, filesize, sizeof(svar_data));
+                      riscv_var_fd, filesize, sizeof(svar_data));
          return -2;
     }
 
-    lseek(fd, 0, SEEK_SET);
+    lseek(fd, 0, sizeof(svar_data));*/
+
+    filesize = 0x170;
     while (bytes_read != filesize) {
         bytes_read += read(fd, svar_data + bytes_read, filesize);
     }
 
-    memdump(svar_data, filesize);
+    virt_memdump(svar_data, filesize);
 
     close(fd);
 
@@ -2411,7 +2413,6 @@ static void virt_machine_init(MachineState *machine)
         sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu_sys), &error_fatal);
     }
 
-    dump_data_from_secure_variable_fd(s->secure_var);
     riscv_var_fd = s->secure_var;
 
     s->power_down.notify = virt_power_down;

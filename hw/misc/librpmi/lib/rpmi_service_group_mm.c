@@ -114,55 +114,6 @@ struct efi_mm_communicate_header {
 
 #define MM_COMMUNICATE_HEADER_SIZE (sizeof(struct efi_mm_communicate_header))
 
-static void memdump(const void *src, size_t count)
-{
-#define BFR_DATA_LIMIT  16
-
-	const char *temp = src;
-	unsigned char bfr_data[BFR_DATA_LIMIT];
-	size_t bfr_counter, bfr_counter_limit;
-	size_t remaining = count, loop_count = 0;
-
-	if (!remaining)
-		return;
-
-	while (remaining) {
-		bfr_counter = 0;
-
-		(remaining >= BFR_DATA_LIMIT) ?
-		    (bfr_counter_limit = BFR_DATA_LIMIT) :
-		    (bfr_counter_limit = remaining);
-
-		while (bfr_counter < bfr_counter_limit) {
-			bfr_data[bfr_counter] = *(temp + bfr_counter);
-			bfr_counter++;
-		}
-
-		/* For simplicity, fill rest with ZERO's if required */
-		while (bfr_counter < BFR_DATA_LIMIT) {
-			bfr_data[bfr_counter] = 0x00;
-			bfr_counter++;
-		}
-
-		if (loop_count < 7) {
-		DPRINTF("\n%06lu "
-			"%02X%02X %02X%02X %02X%02X %02X%02X "
-			"%02X%02X %02X%02X %02X%02X %02X%02X",
-			count - remaining,
-			bfr_data[1], bfr_data[0], bfr_data[3], bfr_data[2],
-			bfr_data[5], bfr_data[4], bfr_data[7], bfr_data[6],
-			bfr_data[9], bfr_data[8], bfr_data[11], bfr_data[10],
-			bfr_data[13], bfr_data[12], bfr_data[15], bfr_data[14]);
-		}
-
-		temp = temp + bfr_counter_limit;
-		remaining = remaining - bfr_counter_limit;
-		loop_count++;
-	}
-
-	DPRINTF("\n%06lu\n", count - remaining);
-}
-
 static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 					      struct rpmi_service *service,
 					      struct rpmi_transport *xport,
@@ -194,12 +145,12 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 	return RPMI_SUCCESS;
 }
 
-static int get_comm_header_guid(const rpmi_uint8_t *msg, rpmi_uint16_t msg_len)
+static int get_comm_header_guid(const rpmi_uint8_t *guid, rpmi_uint16_t msg_len)
 {
 	rpmi_uint8_t i;
 
 	for (i = 1; i < array_size(hguid_lut); i++) {
-		if (memcmp(msg, &hguid_lut[i].guid, msg_len))
+		if (memcmp(guid, &hguid_lut[i].guid, msg_len))
 			continue;
 
 		return i;
@@ -227,7 +178,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	rpmi_uint32_t *rsp = (void *)response_data;
 
 	DPRINTF("====================================================> "
-		"%s: received MM_COMMUNICATE call \n", __func__);
+		"%s: ENTER \n", __func__);
 
 	if (!request_data)
 		return RPMI_ERR_NO_DATA;
@@ -251,9 +202,9 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	msg = rpmi_env_zalloc(msg_len);
 	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)msg, msg_len);
 	DPRINTF("====================================================> "
-		"%s: msg_len = %d \n", __func__, msg_len);
+		"%s: memdump with msg_len = %d", __func__, msg_len);
 
-	memdump(msg, 0);//memdump(msg, HEADER_GUID_SIZE);
+	mm_memdump(msg, msg_len);//mm_memdump(msg, HEADER_GUID_SIZE);
 
 	index = get_comm_header_guid((rpmi_uint8_t *)msg, sizeof(EFI_GUID));
 
@@ -278,7 +229,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	rsp[1] = rpmi_to_xe32(xport->is_be, msg_len);
 
 	DPRINTF("====================================================> "
-		"%s: rsp_len = %d status = %ld\n", __func__, rsp[1], status);
+		"%s: EXIT rsp_len = %d status = %ld\n", __func__, rsp[1], status);
 
 	rpmi_env_free(msg);
 	return status;

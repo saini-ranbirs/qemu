@@ -11,6 +11,98 @@
 #define EFI_NOT_FOUND          14
 #define EFI_UNSUPPORTED        0x8000000000000001ull
 
+#define IN
+#define OUT
+#define EFIAPI
+#define ASSERT(x)
+
+#define VOID     void
+#define CONST    const
+#define BOOLEAN  rpmi_bool_t
+#define TRUE     true
+#define FALSE    false
+
+#define INT8     rpmi_int8_t
+#define INT16    rpmi_int16_t
+#define INT32    rpmi_int32_t
+#define INT64    rpmi_int64_t
+
+#define UINT8    rpmi_uint8_t
+#define UINT16   rpmi_uint16_t
+#define UINT32   rpmi_uint32_t
+#define UINT64   rpmi_uint64_t
+#define UINTN    rpmi_uint64_t
+#define CHAR16   rpmi_uint16_t
+
+///
+/// Signed value of native width.  (4 bytes on supported 32-bit processor instructions,
+/// 8 bytes on supported 64-bit processor instructions)
+///
+typedef INT64 INTN;
+
+#define AtRuntime()    FALSE
+#define ZeroMem(a, b)  rpmi_env_memset(a, 0, b)
+
+//
+// Basical data type definitions introduced in UEFI.
+//
+typedef struct {
+  UINT32  Data1;
+  UINT16  Data2;
+  UINT16  Data3;
+  UINT8   Data4[8];
+} EFI_GUID;
+
+#define GUID         EFI_GUID
+#define GUID_LENGTH  16
+
+//
+// Status codes common to all execution phases
+//
+typedef UINTN RETURN_STATUS;
+
+typedef RETURN_STATUS  EFI_STATUS;
+
+#define RETURN_ERROR(StatusCode)  (((INTN)(RETURN_STATUS)(StatusCode)) < 0)
+
+#define EFI_ERROR(A)  RETURN_ERROR(A)
+
+///
+/// EFI Time Abstraction:
+///  Year:       1900 - 9999
+///  Month:      1 - 12
+///  Day:        1 - 31
+///  Hour:       0 - 23
+///  Minute:     0 - 59
+///  Second:     0 - 59
+///  Nanosecond: 0 - 999,999,999
+///  TimeZone:   -1440 to 1440 or 2047
+///
+typedef struct {
+  UINT16    Year;
+  UINT8     Month;
+  UINT8     Day;
+  UINT8     Hour;
+  UINT8     Minute;
+  UINT8     Second;
+  UINT8     Pad1;
+  UINT32    Nanosecond;
+  INT16     TimeZone;
+  UINT8     Daylight;
+  UINT8     Pad2;
+} EFI_TIME;
+
+//
+// This structure is used for SMM variable. the collected statistics data is saved in SMRAM. It can be got from
+// SMI handler. The communication buffer should be:
+// EFI_MM_COMMUNICATE_HEADER + SMM_VARIABLE_COMMUNICATE_HEADER + payload.
+//
+typedef struct {
+  UINTN         Function;
+  EFI_STATUS    ReturnStatus;
+  UINT8         Data[1];
+} SMM_VARIABLE_COMMUNICATE_HEADER;
+
 // The payload for this function is SMM_VARIABLE_COMMUNICATE_ACCESS_VARIABLE.
 //
 #define SMM_VARIABLE_FUNCTION_GET_VARIABLE  1
@@ -60,192 +152,83 @@
 //
 #define SMM_VARIABLE_FUNCTION_GET_RUNTIME_CACHE_INFO  14
 
-//
-// Basic data type definitions introduced in UEFI.
-//
-typedef struct efi_guid_t {
-	rpmi_uint32_t  data1;
-	rpmi_uint16_t  data2;
-	rpmi_uint16_t  data3;
-	rpmi_uint8_t   data4[8];
-} EFI_GUID;
+///
+/// Size of SMM communicate header, without including the payload.
+///
+#define SMM_COMMUNICATE_HEADER_SIZE  (OFFSET_OF (EFI_MM_COMMUNICATE_HEADER, Data))
 
-//
-// This structure is used for SMM variable. It can be got from SMI handler.
-// The communication buffer should be:
-//     EFI_MM_COMMUNICATE_HEADER + SMM_VARIABLE_COMMUNICATE_HEADER + payload.
-//
-typedef struct {
-	rpmi_uint64_t  function;
-	rpmi_uint64_t  return_status;
-	rpmi_uint8_t   data[1];
-} SMM_VARIABLE_COMMUNICATE_HEADER;
-
-typedef struct {
-	rpmi_uint64_t  variable_payload_size;
-} SMM_VARIABLE_COMMUNICATE_GET_PAYLOAD_SIZE;
+///
+/// Size of SMM variable communicate header, without including the payload.
+///
+#define SMM_VARIABLE_COMMUNICATE_HEADER_SIZE  (OFFSET_OF (SMM_VARIABLE_COMMUNICATE_HEADER, Data))
 
 ///
 /// This structure is used to communicate with SMI handler by SetVariable and GetVariable.
 ///
 typedef struct {
-	EFI_GUID       guid;
-	rpmi_uint64_t  data_size;
-	rpmi_uint64_t  name_size;
-	rpmi_uint32_t  attrs;
-	rpmi_int16_t   name[1];
+  EFI_GUID    Guid;
+  UINTN       DataSize;
+  UINTN       NameSize;
+  UINT32      Attributes;
+  CHAR16      Name[1];
 } SMM_VARIABLE_COMMUNICATE_ACCESS_VARIABLE;
 
-//
-// EFI Time Abstraction:
-//  Year:       2000 - 20XX
-//  Month:      1 - 12
-//  Day:        1 - 31
-//  Hour:       0 - 23
-//  Minute:     0 - 59
-//  Second:     0 - 59
-//  Nanosecond: 0 - 999,999,999
-//  TimeZone:   -1440 to 1440 or 2047
-//
 typedef struct {
-  rpmi_uint16_t  year;
-  rpmi_uint8_t   month;
-  rpmi_uint8_t   day;
-  rpmi_uint8_t   hour;
-  rpmi_uint8_t   minute;
-  rpmi_uint8_t   second;
-  rpmi_uint8_t   pad1;
-  rpmi_uint32_t  nanosecond;
-  rpmi_int16_t   time_zone;
-  rpmi_uint8_t   daylight;
-  rpmi_uint8_t   pad2;
-} EFI_TIME;
-
-///
-/// Single Authenticated Variable Data Header Structure.
-///
-typedef struct {
-	///
-	/// Variable Data Start Flag.
-	///
-	rpmi_uint16_t      start_id;
-	///
-	/// Variable State defined above.
-	///
-	rpmi_uint8_t       state;
-	rpmi_uint8_t       reserved;
-	///
-	/// Attributes of variable defined in UEFI specification.
-	///
-	rpmi_uint32_t      attributes;
-	///
-	/// Associated monotonic count value against replay attack.
-	///
-	rpmi_uint64_t      monotonic_count;
-	///
-	/// Associated TimeStamp value against replay attack.
-	///
-	EFI_TIME           time_stamp;
-	///
-	/// Index of associated public key in database.
-	///
-	rpmi_uint32_t      pub_key_index;
-	///
-	/// Size of variable null-terminated Unicode string name.
-	///
-	rpmi_uint32_t      name_size;
-	///
-	/// Size of the variable data without this header.
-	///
-	rpmi_uint32_t      data_size;
-	///
-	/// A unique id for the vendor that produces and consumes this variable.
-	///
-	EFI_GUID           vendor_guid;
-} AUTHENTICATED_VARIABLE_HEADER;
-
-typedef struct {
-	rpmi_uint16_t  revision;
-	rpmi_uint16_t  property;
-	rpmi_uint32_t  attributes;
-	rpmi_uint64_t  min_size;
-	rpmi_uint64_t  max_size;
+  UINT16    Revision;
+  UINT16    Property;
+  UINT32    Attributes;
+  UINTN     MinSize;
+  UINTN     MaxSize;
 } VAR_CHECK_VARIABLE_PROPERTY;
 
 typedef struct {
-	EFI_GUID                     guid;
-	rpmi_uint64_t                name_size;
-	VAR_CHECK_VARIABLE_PROPERTY  variable_property;
-	rpmi_int16_t                 name[1];
+  EFI_GUID                       Guid;
+  UINTN                          NameSize;
+  VAR_CHECK_VARIABLE_PROPERTY    VariableProperty;
+  CHAR16                         Name[1];
 } SMM_VARIABLE_COMMUNICATE_VAR_CHECK_VARIABLE_PROPERTY;
 
-#define VARIABLE_DATA                     0x55AA
+typedef struct {
+  UINTN    VariablePayloadSize;
+} SMM_VARIABLE_COMMUNICATE_GET_PAYLOAD_SIZE;
+
+#include "EDK2RT_VariableFormat.h"
 
 //
-// Variable Store Header flags
+// Attributes of variable.
 //
-#define VARIABLE_STORE_FORMATTED          0x5a
-#define VARIABLE_STORE_HEALTHY            0xfe
+#define EFI_VARIABLE_NON_VOLATILE                 0x00000001
+#define EFI_VARIABLE_BOOTSERVICE_ACCESS           0x00000002
+#define EFI_VARIABLE_RUNTIME_ACCESS               0x00000004
+#define EFI_VARIABLE_HARDWARE_ERROR_RECORD        0x00000008
 
-///
-/// Alignment of Variable Data Header in Variable Store region.
-///
-#define HEADER_ALIGNMENT  4
-#define HEADER_ALIGN(Header)  (((rpmi_uint64_t) (Header) + HEADER_ALIGNMENT - 1) & (~(HEADER_ALIGNMENT - 1)))
-
-///
-/// Status of Variable Store Region.
-///
 typedef enum {
-	EfiRaw,
-	EfiValid,
-	EfiInvalid,
-	EfiUnknown
-} VARIABLE_STORE_STATUS;
-
-#pragma pack(1)
+  VariableStoreTypeVolatile,
+  VariableStoreTypeHob,
+  VariableStoreTypeNv,
+  VariableStoreTypeMax
+} VARIABLE_STORE_TYPE;
 
 typedef struct {
-	EFI_GUID       Signature;
-	rpmi_uint32_t  Size;
-	rpmi_uint8_t   Format;
-	rpmi_uint8_t   State;
-	rpmi_uint16_t  Reserved;
-	rpmi_uint32_t  Reserved1;
-} VARIABLE_STORE_HEADER;
-
-typedef struct {
-	rpmi_uint16_t  StartId;
-	rpmi_uint8_t   State;
-	rpmi_uint8_t   Reserved;
-	rpmi_uint32_t  Attributes;
-	rpmi_uint32_t  NameSize;
-	rpmi_uint32_t  DataSize;
-	EFI_GUID       VendorGuid;
-} VARIABLE_HEADER;
-
-#pragma pack()
+  VARIABLE_HEADER    *CurrPtr;
+  //
+  // If both ADDED and IN_DELETED_TRANSITION variable are present,
+  // InDeletedTransitionPtr will point to the IN_DELETED_TRANSITION one.
+  // Otherwise, CurrPtr will point to the ADDED or IN_DELETED_TRANSITION one,
+  // and InDeletedTransitionPtr will be NULL at the same time.
+  //
+  VARIABLE_HEADER    *InDeletedTransitionPtr;
+  VARIABLE_HEADER    *EndPtr;
+  VARIABLE_HEADER    *StartPtr;
+  BOOLEAN            Volatile;
+} VARIABLE_POINTER_TRACK;
 
 enum rpmi_error mm_variable_init(void);
 enum rpmi_error mm_variable_handler(rpmi_uint8_t *comm_buffer,
 				    rpmi_uint32_t *comm_buffer_size);
 
-int dump_data_from_secure_variable_fd(const char *svar_fd);
+void mm_memdump(const void *src, rpmi_size_t count);
 
-rpmi_bool_t
-IsValidVariableHeader (
-  VARIABLE_HEADER  *Variable,
-  VARIABLE_HEADER  *VariableStoreEnd
-  );
-
-VARIABLE_STORE_STATUS
-GetVariableStoreStatus (
-  VARIABLE_STORE_HEADER  *VarStoreHeader
-  );
-
-VARIABLE_HEADER *
-GetStartPointer (
-  VARIABLE_STORE_HEADER  *VarStoreHeader
-  );
+int get_data_from_secure_variable_fd(rpmi_uint8_t *data);
 
 #endif /* __RPMI_MM_VARIABLE_H__ */

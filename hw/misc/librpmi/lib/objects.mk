@@ -18,4 +18,5 @@ lib-objs-y += rpmi_transport.o
 lib-objs-y += rpmi_transport_shmem.o
 
 lib-objs-y += mm_variable.o
+lib-objs-y += EDK2RT_VariableParsing.o
 
