@@ -57,6 +57,7 @@ struct rpmi_mm_comm_req {
 enum mm_header_guid {
 	EFI_SMM_HEADER_GUID_NONE,
 	EFI_SMM_VARIABLE_PROTOCOL_GUID,
+	EFI_SMM_VARIABLE_CHECK_POLICY_GUID,
 };
 
 #define EFI_SMM_HEADER_GUID_NONE_DATA	\
@@ -67,6 +68,10 @@ enum mm_header_guid {
 	{ 0xed32d533, 0x99e6, 0x4209,	\
 	  { 0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7 } }
 
+#define EFI_SMM_VARIABLE_CHECK_POLICY_GUID_DATA	\
+	{ 0xda1b0d11, 0xd1a7, 0x46c4,	\
+	  { 0x9d, 0xc9, 0xf3, 0x71, 0x48, 0x75, 0xc6, 0xeb } }
+
 struct rpmi_mm_hdr_guid {
 	enum mm_header_guid name;
 	EFI_GUID guid;
@@ -76,6 +81,8 @@ struct rpmi_mm_hdr_guid hguid_lut[] = {
 	[0] { EFI_SMM_HEADER_GUID_NONE, EFI_SMM_HEADER_GUID_NONE_DATA },
 	[1] { EFI_SMM_VARIABLE_PROTOCOL_GUID,
 	      EFI_SMM_VARIABLE_PROTOCOL_GUID_DATA },
+	[2] { EFI_SMM_VARIABLE_CHECK_POLICY_GUID,
+	      EFI_SMM_VARIABLE_CHECK_POLICY_GUID_DATA },
 };
 
 /* Defined in EDK2 MdePkg/Include/Protocol/MmCommunication.h */
@@ -201,9 +208,17 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 				(rpmi_uint8_t *)msg, msg_len);
 		break;
 
+	case EFI_SMM_VARIABLE_CHECK_POLICY_GUID:
+		DPRINTF("====================================================> "
+			"%s: header guid EFI_SMM_VARIABLE_CHECK_POLICY_GUID \n", __func__);
+		status = RPMI_ERR_NOTSUPP;
+		msg_len = 0;
+		break;
+
 	default:
 		DPRINTF("====================================================> "
-			"%s: header guid !EFI_SMM_VARIABLE_PROTOCOL_GUID \n", __func__);
+			"%s: header guid !EFI_SMM_VARIABLE_PROTOCOL_GUID "
+			"!EFI_SMM_VARIABLE_CHECK_POLICY_GUID\n", __func__);
 		status = RPMI_ERR_NO_DATA;
 		msg_len = 0;
 		break;
