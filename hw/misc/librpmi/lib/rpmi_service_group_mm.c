@@ -7,15 +7,7 @@
 #include "librpmi_internal.h"
 #include "mm_variable.h"
 
-#define DEBUG  1
-
-#ifdef DEBUG
-
-#include "stdio.h"
-#include "stdarg.h"
-#include "stddef.h"
-#include "string.h"
-
+#if ENABLE_DEBUG
 int rpmi_env_printf(const char *format, ...)
 {
 	va_list args;
@@ -31,13 +23,6 @@ int rpmi_env_printf(const char *format, ...)
 
 	return bytes_written;
 }
-
-#define DPRINTF(msg...)		rpmi_env_printf(msg)
-
-#else
-
-#define DPRINTF(msg...)
-
 #endif
 
 #define RPMI_MM_MAJOR_VER  0x1UL
@@ -170,8 +155,8 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	struct rpmi_mm_comm_req *mmc_req;
 	struct rpmi_mm_group *sgmm = group->priv;
 	rpmi_uint8_t *buf;
-	rpmi_uint32_t msg_len;
-	rpmi_uint64_t  status = RPMI_ERR_NO_DATA;
+	rpmi_uint64_t msg_len;
+	rpmi_uint64_t status = RPMI_ERR_NO_DATA;
 	struct efi_mm_communicate_header *mm_comm_hdr, *msg;
 	rpmi_uint64_t mm_addr;
 	rpmi_uint8_t index;
@@ -202,16 +187,16 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	msg = rpmi_env_zalloc(msg_len);
 	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)msg, msg_len);
 	DPRINTF("====================================================> "
-		"%s: memdump with msg_len = %d", __func__, msg_len);
+		"%s: memdump with msg_len = %ld", __func__, msg_len);
 
-	mm_memdump(msg, msg_len);//mm_memdump(msg, HEADER_GUID_SIZE);
+	mm_memdump(msg, msg_len, "MSG");//mm_memdump(msg, HEADER_GUID_SIZE, "G");
 
 	index = get_comm_header_guid((rpmi_uint8_t *)msg, sizeof(EFI_GUID));
 
 	switch (hguid_lut[index].name) {
 	case EFI_SMM_VARIABLE_PROTOCOL_GUID:
 		status =
-		    mm_variable_handler((rpmi_uint8_t *)&msg->data, &msg_len);
+		    mm_variable_handler(&msg->data, (UINTN *)&msg_len);
 		rpmi_env_writeb(mm_addr + mmc_req->odata_off,
 				(rpmi_uint8_t *)msg, msg_len);
 		break;
