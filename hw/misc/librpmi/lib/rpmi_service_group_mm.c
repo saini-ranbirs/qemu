@@ -7,6 +7,21 @@
 #include "librpmi_internal.h"
 #include "mm_variable.h"
 
+EFI_STATUS
+EFIAPI
+VarCheckPolicyLibCommonConstructor (
+  VOID
+  );
+
+EFI_STATUS
+EFIAPI
+VarCheckPolicyLibMmiHandler (
+  IN     EFI_HANDLE  DispatchHandle,
+  IN     CONST VOID  *RegisterContext,
+  IN OUT VOID        *CommBuffer,
+  IN OUT UINTN       *CommBufferSize
+  );
+
 #if ENABLE_DEBUG
 int rpmi_env_printf(const char *format, ...)
 {
@@ -211,8 +226,10 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	case EFI_SMM_VARIABLE_CHECK_POLICY_GUID:
 		DPRINTF("====================================================> "
 			"%s: header guid EFI_SMM_VARIABLE_CHECK_POLICY_GUID \n", __func__);
-		status = RPMI_ERR_NOTSUPP;
-		msg_len = 0;
+		status = VarCheckPolicyLibMmiHandler(NULL, NULL, &msg->data,
+						     (UINTN *)&msg_len);
+		rpmi_env_writeb(mm_addr + mmc_req->odata_off,
+				(rpmi_uint8_t *)msg, msg_len);
 		break;
 
 	default:
@@ -290,6 +307,7 @@ rpmi_service_group_mm_create(rpmi_uint32_t shmem_addr_hi,
 	group->priv = sgmm;
 
 	mm_variable_init();
+	VarCheckPolicyLibCommonConstructor();
 
 	DPRINTF("====================================================> "
 		"%s: received call 0x%x \n", __func__, shmem_size);

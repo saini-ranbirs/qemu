@@ -40,4 +40,29 @@ VarCheckPolicyIsPrimaryBufferValid (
   IN UINT64                Length
   );
 
+/**
+  MM Communication Handler to recieve commands from the DXE protocol for
+  Variable Policies. This communication channel is used to register new policies
+  and poll and toggle the enforcement of variable policies.
+
+  @param[in]      DispatchHandle      All parameters standard to MM communications convention.
+  @param[in]      RegisterContext     All parameters standard to MM communications convention.
+  @param[in,out]  CommBuffer          All parameters standard to MM communications convention.
+  @param[in,out]  CommBufferSize      All parameters standard to MM communications convention.
+
+  @retval     EFI_SUCCESS
+  @retval     EFI_INVALID_PARAMETER   CommBuffer or CommBufferSize is null pointer.
+  @retval     EFI_INVALID_PARAMETER   CommBuffer size is wrong.
+  @retval     EFI_INVALID_PARAMETER   Revision or signature don't match.
+
+**/
+EFI_STATUS
+EFIAPI
+VarCheckPolicyLibMmiHandler (
+  IN     EFI_HANDLE  DispatchHandle,
+  IN     CONST VOID  *RegisterContext,
+  IN OUT VOID        *CommBuffer,
+  IN OUT UINTN       *CommBufferSize
+  );
+
 #endif // _VAR_CHECK_POLICY_LIB_H_

@@ -56,9 +56,13 @@ specific_ss.add(when: 'CONFIG_RISCV_RPMI', if_true: files(
   'librpmi/lib/rpmi_shmem.c',
   'librpmi/lib/rpmi_transport.c',
   'librpmi/lib/rpmi_transport_shmem.c',
+  'librpmi/edk2/MdeModulePkg/Library/VarCheckPolicyLib/VarCheckPolicyLib.c',
+  'librpmi/edk2/MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLib.c',
   'librpmi/edk2/MdePkg/Library/BaseDebugLibNull/DebugLib.c',
   'librpmi/edk2/MdePkg/Library/BaseLib/BitField.c',
   'librpmi/edk2/MdePkg/Library/BaseLib/LShiftU64.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/DivU64x32.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/LinkedList.c',
   'librpmi/edk2/MdePkg/Library/BaseLib/Math64.c',
   'librpmi/edk2/MdePkg/Library/BaseLib/MultS64x64.c',
   'librpmi/edk2/MdePkg/Library/BaseLib/MultU64x32.c',
@@ -72,6 +76,10 @@ specific_ss.add(when: 'CONFIG_RISCV_RPMI', if_true: files(
   'librpmi/edk2/MdePkg/Library/BaseMemoryLib/MemLibGeneric.c',
   'librpmi/edk2/MdePkg/Library/BaseMemoryLib/MemLibGuid.c',
   'librpmi/edk2/MdePkg/Library/BaseMemoryLib/SetMem.c',
+  'librpmi/edk2/MdePkg/Library/BaseMemoryLib/SetMemWrapper.c',
+  'librpmi/edk2/MdePkg/Library/BaseMemoryLib/ZeroMemWrapper.c',
+  'librpmi/edk2/MdePkg/Library/BaseSafeIntLib/SafeIntLib.c',
+  'librpmi/edk2/MdePkg/Library/BaseSafeIntLib/SafeIntLib64.c',
   'librpmi/lib/mm_variable.c'))
 
 subdir('macio')

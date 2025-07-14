@@ -41,8 +41,12 @@
 
 #define GUID_LENGTH     16
 
+#define _PCD_GET_MODE_BOOL_PcdAllowVariablePolicyEnforcementDisable  FALSE
+#define _PCD_GET_MODE_BOOL_PcdVerifyNodeInList                       TRUE
+
 #define _PCD_GET_MODE_32_PcdMaximumUnicodeStringLength  1000000
 #define _PCD_GET_MODE_32_PcdMaximumAsciiStringLength    1000000
+#define _PCD_GET_MODE_32_PcdMaximumLinkedListLength     1000000
 
 //
 // Attributes of variable.
@@ -89,16 +93,6 @@ FindVariableRS (
 
 EFI_STATUS
 EFIAPI
-VariableServiceGetVariable (
-  IN      CHAR16    *VariableName,
-  IN      EFI_GUID  *VendorGuid,
-  OUT     UINT32    *Attributes OPTIONAL,
-  IN OUT  UINTN     *DataSize,
-  OUT     VOID      *Data OPTIONAL
-  );
-
-EFI_STATUS
-EFIAPI
 VariableServiceGetNextVariableInternal (
   IN  CHAR16                 *VariableName,
   IN  EFI_GUID               *VendorGuid,
@@ -139,6 +133,12 @@ InternalBaseLibBitFieldAndUint (
   IN      UINTN  StartBit,
   IN      UINTN  EndBit,
   IN      UINTN  AndData
+  );
+
+BOOLEAN
+EFIAPI
+InternalBaseLibIsListValid (
+  IN CONST LIST_ENTRY  *List
   );
 
 #endif /* __RPMI_MM_VARIABLE_H__ */

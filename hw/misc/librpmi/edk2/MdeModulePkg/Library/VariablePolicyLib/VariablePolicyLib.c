@@ -6,6 +6,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
+#include <mm_variable.h>
 #include <Uefi.h>
 
 #include <Library/BaseLib.h>
@@ -17,6 +18,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #include <Protocol/VariablePolicy.h>
 #include <Library/VariablePolicyLib.h>
+
+#define AllocateRuntimePool  rpmi_env_zalloc
+#define FreePool             rpmi_env_free
 
 // IMPORTANT NOTE: This library is currently rife with multiple return statements
 //                 for error handling. A refactor should remove these at some point.
@@ -739,7 +743,6 @@ GetVariablePolicyInfo (
 {
   EFI_STATUS             Status;
   UINT8                  MatchPriority;
-  UINTN                  LocalVariablePolicyVariableNameBufferSize;
   UINTN                  RequiredVariablePolicyVariableNameBufferSize;
   VARIABLE_POLICY_ENTRY  *MatchPolicy;
 
@@ -790,8 +793,6 @@ GetVariablePolicyInfo (
         return EFI_INVALID_PARAMETER;
       }
 
-      LocalVariablePolicyVariableNameBufferSize = *VariablePolicyVariableNameBufferSize;
-
       // Actual string size should match expected string size
       if (
           ((StrnLenS (GET_POLICY_NAME (MatchPolicy), RequiredVariablePolicyVariableNameBufferSize) + 1) * sizeof (CHAR16))
@@ -805,7 +806,6 @@ GetVariablePolicyInfo (
 
       Status = StrnCpyS (
                  VariablePolicyVariableName,
-                 LocalVariablePolicyVariableNameBufferSize / sizeof (CHAR16),
                  GET_POLICY_NAME (MatchPolicy),
                  RequiredVariablePolicyVariableNameBufferSize / sizeof (CHAR16)
                  );
@@ -976,7 +976,6 @@ GetLockOnVariableStateVariablePolicyInfo (
 
     Status =  StrnCpyS (
                 VariableLockPolicyVariableName,
-                LocalVariablePolicyLockVariableNameBufferSize / sizeof (CHAR16),
                 LocalVariableLockPolicyVariableName,
                 RequiredVariableLockPolicyVariableNameBufferSize / sizeof (CHAR16)
                 );
@@ -1087,7 +1086,7 @@ InitVariablePolicyLib (
   }
 
   if (!EFI_ERROR (Status)) {
-    Status = VariablePolicyExtraInit ();
+    //Status = VariablePolicyExtraInit ();
   }
 
   if (!EFI_ERROR (Status)) {
@@ -1146,7 +1145,7 @@ DeinitVariablePolicyLib (
   }
 
   if (!EFI_ERROR (Status)) {
-    Status = VariablePolicyExtraDeinit ();
+    //Status = VariablePolicyExtraDeinit ();
   }
 
   if (!EFI_ERROR (Status)) {

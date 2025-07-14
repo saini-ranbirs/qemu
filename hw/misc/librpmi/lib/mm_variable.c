@@ -33,6 +33,16 @@ VariableServiceGetVariable (
   OUT     UINT32    *Attributes OPTIONAL,
   IN OUT  UINTN     *DataSize,
   OUT     VOID      *Data OPTIONAL
+  );
+
+EFI_STATUS
+EFIAPI
+VariableServiceGetVariable (
+  IN      CHAR16    *VariableName,
+  IN      EFI_GUID  *VendorGuid,
+  OUT     UINT32    *Attributes OPTIONAL,
+  IN OUT  UINTN     *DataSize,
+  OUT     VOID      *Data OPTIONAL
   )
 {
   EFI_STATUS                                Status;

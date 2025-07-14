@@ -9,6 +9,7 @@
 
 **/
 
+#include <mm_variable.h>
 #include <Base.h>
 #include <Library/SafeIntLib.h>
 
