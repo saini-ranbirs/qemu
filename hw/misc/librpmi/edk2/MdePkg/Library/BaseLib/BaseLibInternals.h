@@ -9,6 +9,7 @@
 #ifndef __BASE_LIB_INTERNALS__
 #define __BASE_LIB_INTERNALS__
 
+#include <mm_variable.h>
 #include <Base.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>

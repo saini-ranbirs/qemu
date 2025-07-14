@@ -56,6 +56,22 @@ specific_ss.add(when: 'CONFIG_RISCV_RPMI', if_true: files(
   'librpmi/lib/rpmi_shmem.c',
   'librpmi/lib/rpmi_transport.c',
   'librpmi/lib/rpmi_transport_shmem.c',
+  'librpmi/edk2/MdePkg/Library/BaseDebugLibNull/DebugLib.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/BitField.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/LShiftU64.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/Math64.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/MultS64x64.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/MultU64x32.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/MultU64x64.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/RShiftU64.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/SafeString.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/SwapBytes16.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/SwapBytes32.c',
+  'librpmi/edk2/MdePkg/Library/BaseLib/Unaligned.c',
+  'librpmi/edk2/MdePkg/Library/BaseMemoryLib/CompareMemWrapper.c',
+  'librpmi/edk2/MdePkg/Library/BaseMemoryLib/MemLibGeneric.c',
+  'librpmi/edk2/MdePkg/Library/BaseMemoryLib/MemLibGuid.c',
+  'librpmi/edk2/MdePkg/Library/BaseMemoryLib/SetMem.c',
   'librpmi/lib/mm_variable.c'))
 
 subdir('macio')

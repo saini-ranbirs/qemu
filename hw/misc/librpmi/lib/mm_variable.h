@@ -41,6 +41,8 @@
 
 #define GUID_LENGTH     16
 
+#define _PCD_GET_MODE_32_PcdMaximumUnicodeStringLength  1000000
+#define _PCD_GET_MODE_32_PcdMaximumAsciiStringLength    1000000
 
 //
 // Attributes of variable.
@@ -111,6 +113,32 @@ VariableServiceGetNextVariableName (
   IN OUT  UINTN     *VariableNameSize,
   IN OUT  CHAR16    *VariableName,
   IN OUT  EFI_GUID  *VendorGuid
+  );
+
+UINTN
+EFIAPI
+InternalBaseLibBitFieldReadUint (
+  IN      UINTN  Operand,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
+  );
+
+UINTN
+EFIAPI
+InternalBaseLibBitFieldOrUint (
+  IN      UINTN  Operand,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINTN  OrData
+  );
+
+UINTN
+EFIAPI
+InternalBaseLibBitFieldAndUint (
+  IN      UINTN  Operand,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINTN  AndData
   );
 
 #endif /* __RPMI_MM_VARIABLE_H__ */

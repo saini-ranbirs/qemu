@@ -4130,6 +4130,10 @@ foreach target : target_dirs
 
     if target_name == 'riscv64' or target_name == 'riscv32'
         target_inc += include_directories('hw/misc/librpmi/include')
+        target_inc += include_directories('hw/misc/librpmi/lib')
+        target_inc += include_directories('hw/misc/librpmi/edk2/MdeModulePkg/Include')
+        target_inc += include_directories('hw/misc/librpmi/edk2/MdePkg/Include')
+        target_inc += include_directories('hw/misc/librpmi/edk2/MdePkg/Include/RiscV64')
     endif
 
     hw_dir = target_name == 'sparc64' ? 'sparc64' : target_base_arch

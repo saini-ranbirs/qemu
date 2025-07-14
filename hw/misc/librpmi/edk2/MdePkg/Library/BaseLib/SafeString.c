@@ -22,6 +22,7 @@
     } \
   } while (FALSE)
 
+#if 0
 /**
   Returns if 2 memory blocks are overlapped.
 
@@ -97,6 +98,7 @@ InternalSafeStringNoAsciiStrOverlap (
 {
   return !InternalSafeStringIsOverlap (Str1, Size1, Str2, Size2);
 }
+#endif
 
 /**
   Returns the length of a Null-terminated Unicode string.
@@ -150,6 +152,7 @@ StrnLenS (
   return Length;
 }
 
+#if 0
 /**
   Returns the size of a Null-terminated Unicode string in bytes, including the
   Null terminator.
@@ -3628,3 +3631,4 @@ AsciiStrHexToBytes (
 
   return RETURN_SUCCESS;
 }
+#endif

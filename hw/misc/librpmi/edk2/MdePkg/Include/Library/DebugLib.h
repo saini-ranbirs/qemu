@@ -399,6 +399,7 @@ UnitTestDebugAssert (
   @param  Expression  Boolean expression.
 
 **/
+#if 0
 #if !defined (MDEPKG_NDEBUG)
 #define ASSERT(Expression)        \
     do {                            \
@@ -416,6 +417,7 @@ UnitTestDebugAssert (
         (VOID) (Expression);       \
       }                            \
     } while (FALSE)
+#endif
 #endif
 
 /**

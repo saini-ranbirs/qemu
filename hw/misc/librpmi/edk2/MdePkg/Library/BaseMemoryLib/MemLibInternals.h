@@ -17,6 +17,7 @@
 #ifndef __MEM_LIB_INTERNALS__
 #define __MEM_LIB_INTERNALS__
 
+#include <mm_variable.h>
 #include <Base.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/BaseLib.h>
