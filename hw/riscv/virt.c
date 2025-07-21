@@ -107,6 +107,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_RPMI_DOORBELL] = { 0x10230000,       0x10000 },
     [VIRT_RPMI_SOC_SHMEM] = { 0x10240000,      0xF000 },
     [VIRT_RPMI_SOC_DOORBELL] = { 0x1024F000,   0x1000 },
+    [VIRT_MM_SHMEM] =     { 0x10300000,      0x200000 },
     [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
     [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
@@ -1344,6 +1345,30 @@ static void create_fdt_sbi_mpxy_clk(RISCVVirtState *s, uint32_t mpxy_mbox_phandl
     g_free(name);
 }
 
+static void create_fdt_sbi_mpxy_mm(RISCVVirtState *s, uint32_t mpxy_mbox_phandle)
+{
+    MemoryRegion *rpmi_mm_shmem = g_new(MemoryRegion, 1);
+    MemoryRegion *system_memory = get_system_memory();
+    MachineState *mc = MACHINE(s);
+    char *name;
+
+    /* MM shared memory */
+    memory_region_init_ram(rpmi_mm_shmem, NULL, "riscv.rpmi-mm.shmem",
+                           s->memmap[VIRT_MM_SHMEM].size, &error_fatal);
+    memory_region_add_subregion(system_memory,
+                                s->memmap[VIRT_MM_SHMEM].base,
+                                rpmi_mm_shmem);
+
+    name = g_strdup_printf("/soc/sbi-mpxy-mm");
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "riscv,rpmi-mm");
+    qemu_fdt_setprop_sized_cells(mc->fdt, name, "reg", 2,
+                                 s->memmap[VIRT_MM_SHMEM].base, 2,
+                                 s->memmap[VIRT_MM_SHMEM].size);
+    qemu_fdt_setprop_cells(mc->fdt, name, "mboxes", mpxy_mbox_phandle, 0x1003, 0x0);
+    g_free(name);
+}
+
 static void create_fdt_rpmi_sysmsi(RISCVVirtState *s, uint64_t shmem_base,
                                    uint32_t rpmi_mbox_handle)
 {
@@ -1387,6 +1412,23 @@ static void create_fdt_rpmi_clock(RISCVVirtState *s, uint64_t shmem_base,
     g_free(name);
 }
 
+static void create_fdt_rpmi_mm(RISCVVirtState *s, uint64_t shmem_base,
+                               uint32_t rpmi_mbox_handle)
+{
+    uint32_t rpmi_mm_servicegrp = 0x000B;
+    MachineState *ms = MACHINE(s);
+    char *name;
+
+    name = g_strdup_printf("/soc/mailbox@%lx/mm@%lx", (long)shmem_base,
+                           (long)rpmi_mm_servicegrp);
+    qemu_fdt_add_subnode(ms->fdt, name);
+    qemu_fdt_setprop_string(ms->fdt, name, "compatible", "riscv,rpmi-mpxy-mm");
+    qemu_fdt_setprop_cells(ms->fdt, name, "mboxes", rpmi_mbox_handle,
+                           rpmi_mm_servicegrp);
+    qemu_fdt_setprop_cell(ms->fdt,  name, "riscv,sbi-mpxy-channel-id", 0x1003);
+    g_free(name);
+}
+
 static void create_fdt_rpmi_nodes(RISCVVirtState *s, int xport_id,
                                   uint64_t shmem_base, uint64_t db_base,
                                   uint32_t msi_phandle, uint32_t *phandle,
@@ -1403,9 +1445,11 @@ static void create_fdt_rpmi_nodes(RISCVVirtState *s, int xport_id,
         create_fdt_rpmi_suspend(s, shmem_base, rpmi_mbox_handle);
         create_fdt_rpmi_sysmsi(s, shmem_base, rpmi_mbox_handle);
         create_fdt_rpmi_clock(s, shmem_base, rpmi_mbox_handle);
+        create_fdt_rpmi_mm(s, shmem_base, rpmi_mbox_handle);
         create_fdt_sbi_mbox(s, phandle, msi_phandle, &mbox_phandle);
         create_fdt_sbi_mpxy_sysmsi(s, phandle, msi_phandle, mbox_phandle);
         create_fdt_sbi_mpxy_clk(s, mbox_phandle);
+        create_fdt_sbi_mpxy_mm(s, mbox_phandle);
     } else {
         /* Socket transport will have rest of the no system service groups */
         create_fdt_rpmi_hsm(s, shmem_base, rpmi_mbox_handle);
@@ -1569,11 +1613,11 @@ static void finalize_fdt(RISCVVirtState *s)
     uint32_t phandle = 1, irq_mmio_phandle = 1, msi_pcie_phandle = 1;
     uint32_t irq_pcie_phandle = 1, irq_virtio_phandle = 1;
     uint32_t iommu_sys_phandle = 1, *cpu_phandles;
-    uint32_t a2preq_qsz, p2areq_qsz;
+    uint32_t a2preq_qsz, p2areq_qsz, mm_shm_sz;
     int i, base_hartid = -1, hart_count = 0;
     int rpmi_xports = riscv_socket_count(ms) + 1;
     bool soc_xport_type = 0;
-    uint64_t harts_mask;
+    uint64_t harts_mask, mm_shm_base;
 
     cpu_phandles = g_new0(uint32_t, ms->smp.cpus);
 
@@ -1644,10 +1688,11 @@ static void finalize_fdt(RISCVVirtState *s)
                                   soc_xport_type,
                                   a2preq_qsz, p2areq_qsz,
                                   db_sz);
-            riscv_rpmi_create(db_base, shm_base, shm_sz,
-                              a2preq_qsz, p2areq_qsz,
-                              fcm_base, fcm_sz,
-                              harts_mask, soc_xport_type, ms);
+            mm_shm_base = s->memmap[VIRT_MM_SHMEM].base;
+            mm_shm_sz = s->memmap[VIRT_MM_SHMEM].size;
+            riscv_rpmi_create(db_base, shm_base, shm_sz, a2preq_qsz, p2areq_qsz,
+                              fcm_base, fcm_sz, harts_mask, soc_xport_type,
+                              mm_shm_base, mm_shm_sz, ms);
         }
     } else {
         create_fdt_reset(s, &phandle);
