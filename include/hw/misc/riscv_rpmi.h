@@ -73,8 +73,8 @@ void riscv_rpmi_inject_sysmsi(uint32_t sys_msi_index);
 
 DeviceState *riscv_rpmi_create(hwaddr db_addr, hwaddr shm_addr, int shm_sz,
                                uint32_t a2preq_qsz, uint32_t p2areq_qsz,
-                               hwaddr fcm_addr, int fcm_sz,
-                               uint64_t harts_mask, uint32_t flags,
+                               hwaddr fcm_addr, int fcm_sz, uint64_t harts_mask,
+                               uint32_t flags, hwaddr mm_shm_addr, int mm_shm_sz,
                                MachineState *ms);
 
 void handle_rpmi_event(void);

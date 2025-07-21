@@ -106,6 +106,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_RPMI_DOORBELL] = { 0x10230000,       0x10000 },
     [VIRT_RPMI_SOC_SHMEM] = { 0x10240000,      0xF000 },
     [VIRT_RPMI_SOC_DOORBELL] = { 0x1024F000,   0x1000 },
+    [VIRT_MM_SHMEM] =     { 0x10300000,      0x200000 },
     [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
     [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
@@ -1588,11 +1589,11 @@ static void finalize_fdt(RISCVVirtState *s)
     uint32_t phandle = 1, irq_mmio_phandle = 1, msi_pcie_phandle = 1;
     uint32_t irq_pcie_phandle = 1, irq_virtio_phandle = 1;
     uint32_t iommu_sys_phandle = 1, *cpu_phandles;
-    uint32_t a2preq_qsz, p2areq_qsz;
+    uint32_t a2preq_qsz, p2areq_qsz, mm_shm_sz;
     int i, base_hartid = -1, hart_count = 0;
     int rpmi_xports = riscv_socket_count(ms) + 1;
+    uint64_t harts_mask, mm_shm_base;
     bool soc_xport_type = 0;
-    uint64_t harts_mask;
 
     cpu_phandles = g_new0(uint32_t, ms->smp.cpus);
 
@@ -1667,10 +1668,11 @@ static void finalize_fdt(RISCVVirtState *s)
                                   soc_xport_type,
                                   a2preq_qsz, p2areq_qsz,
                                   db_sz);
-            riscv_rpmi_create(db_base, shm_base, shm_sz,
-                              a2preq_qsz, p2areq_qsz,
-                              fcm_base, fcm_sz,
-                              harts_mask, soc_xport_type, ms);
+            mm_shm_base = s->memmap[VIRT_MM_SHMEM].base;
+            mm_shm_sz = s->memmap[VIRT_MM_SHMEM].size;
+            riscv_rpmi_create(db_base, shm_base, shm_sz, a2preq_qsz, p2areq_qsz,
+                              fcm_base, fcm_sz, harts_mask, soc_xport_type,
+                              mm_shm_base, mm_shm_sz, ms);
         }
     } else {
         create_fdt_reset(s, virt_memmap, &phandle);
