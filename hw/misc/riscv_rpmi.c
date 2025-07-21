@@ -43,6 +43,7 @@ void add_sysmsi_group(struct rpmi_context *rctx);
 void add_sysreset_group(struct rpmi_context *rctx);
 int add_hsm_group(struct rpmi_context *rctx, uint64_t harts_mask,
                   uint32_t soc_xport_type, struct rpmi_hsm **hsm_ctx);
+int add_mm_group(struct rpmi_context *rctx, hwaddr shm_addr, int shm_sz);
 void add_syssusp_group(struct rpmi_context *rctx, void *rpmi_hsm);
 int add_clock_group(struct rpmi_context *rctx);
 int add_cppc_group(struct rpmi_context *rctx,
@@ -227,6 +228,7 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
                       "%s: rpmi_context created: %p\n",
                       __func__, rctx);
     }
+
     /* create HSM group */
     add_hsm_group(rctx, harts_mask, soc_xport_type, &hsm_ctx);
 
@@ -258,6 +260,9 @@ int init_rpmi_svc_groups(hwaddr shm_addr, int shm_sz,
 
         /* create rpmi clock service group */
         add_clock_group(rctx);
+
+        /* create MM group */
+        add_mm_group(rctx, shm_addr, shm_sz);
     }
 
     /* save the context */
