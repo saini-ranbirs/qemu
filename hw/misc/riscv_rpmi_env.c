@@ -19,6 +19,22 @@ void rpmi_env_free(void *ptr)
     free(ptr);
 }
 
+int rpmi_env_printf(const char *format, ...)
+{
+    int bytes_written;
+    char buf[512];
+    va_list args;
+
+    va_start(args, format);
+
+    bytes_written = vsnprintf(buf, sizeof(buf), format, args);
+    fwrite(buf, sizeof(char), bytes_written, stdout);
+
+    va_end(args);
+
+    return bytes_written;
+}
+
 void rpmi_env_writel(rpmi_uint64_t addr, rpmi_uint32_t val)
 {
     cpu_physical_memory_write(addr, &val, 4);
