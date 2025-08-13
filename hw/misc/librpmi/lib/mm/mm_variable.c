@@ -12,6 +12,7 @@
 
 static rpmi_uint8_t var_store[VAR_MAX_NUM][VAR_MAX_INFOSIZE];
 static rpmi_uint8_t store_count;
+static rpmi_uint8_t store_ptr;
 static enum var_store_var_data_type store_n_data_type;
 
 static rpmi_uint8_t *m_var_buf_payload = NULL;
@@ -119,7 +120,7 @@ enum rpmi_error mm_variable_init(void)
 	}
 
 	store_n_data_type = STORE_TYPE_RAM_DATA_TYPE_RAW;
-	store_count = 0;
+	store_count = store_ptr = 0;
 
 	return RPMI_SUCCESS;
 }
@@ -130,7 +131,8 @@ void mm_variable_term(void)
 }
 
 static rpmi_uint64_t validate_input(struct mm_var_comm_header *comm_hdr,
-				    rpmi_uint32_t payload_size)
+				    rpmi_uint32_t payload_size,
+				    rpmi_bool_t is_context_get_variable)
 {
 	struct mm_var_comm_access_variable *var;
 	rpmi_uint64_t infosize;
@@ -172,7 +174,99 @@ static rpmi_uint64_t validate_input(struct mm_var_comm_header *comm_hdr,
 		return EFI_ACCESS_DENIED;
 	}
 
+	if (is_context_get_variable && (var->name[0] == 0))
+		return EFI_INVALID_PARAMETER;
+
 	return EFI_SUCCESS;
+}
+
+static rpmi_uint64_t find_var_raw_ram(rpmi_uint16_t *varname,
+				      struct efi_guid *vendor_guid)
+{
+	struct mm_var_comm_access_variable *var;
+
+	while (store_ptr < store_count) {
+		var =
+		    (struct mm_var_comm_access_variable *)&var_store[store_ptr];
+		if (!rpmi_env_memcmp(vendor_guid, &var->guid, GUID_LENGTH)) {
+			if (!rpmi_env_memcmp(varname, var->name, var->namesize))
+				return EFI_SUCCESS;
+		}
+
+		store_ptr++;
+	}
+
+	return (store_ptr >= store_count) ? EFI_NOT_FOUND : EFI_SUCCESS;
+}
+
+static rpmi_uint64_t get_var_raw_ram(struct mm_var_comm_header *comm_hdr,
+				     rpmi_uint32_t payload_size)
+{
+	struct mm_var_comm_access_variable *var1, *var2;
+	rpmi_uint64_t status;
+	void *var1_data;
+
+	rpmi_env_memcpy(m_var_buf_payload, comm_hdr->data, payload_size);
+	var1 = (struct mm_var_comm_access_variable *)m_var_buf_payload;
+
+	store_ptr = 0;
+	status = find_var_raw_ram(var1->name, &var1->guid);
+	if (EFI_ERROR(status))
+		return status;
+
+	// Get data size
+	var1_data = (rpmi_uint8_t *)var1->name + var1->namesize;
+	var2 = (struct mm_var_comm_access_variable *)&var_store[store_ptr];
+	if (var2->datasize && (var1->datasize >= var2->datasize)) {
+		if (var1_data == NULL) {
+			status = EFI_INVALID_PARAMETER;
+			goto done;
+		}
+
+		rpmi_env_memcpy(var1_data,
+				(rpmi_uint8_t *)var2->name + var2->namesize,
+				var2->datasize);
+		status = EFI_SUCCESS;
+	} else {
+		status = EFI_BUFFER_TOO_SMALL;
+	}
+
+	var1->datasize = var2->datasize;
+
+done:
+	if ((status == EFI_SUCCESS) || (status == EFI_BUFFER_TOO_SMALL)) {
+		if (store_ptr < store_count)
+			var1->attr = var2->attr;
+	}
+
+	rpmi_env_memcpy(comm_hdr->data, (rpmi_uint8_t *)&var_store[store_ptr],
+			payload_size);
+
+	return status;
+}
+
+static rpmi_uint64_t fn_get_variable(struct mm_var_comm_header *comm_hdr,
+				     rpmi_uint32_t payload_size)
+{
+	rpmi_uint64_t status;
+
+	switch (store_n_data_type) {
+	case STORE_TYPE_RAM_DATA_TYPE_RAW:
+		status = get_var_raw_ram(comm_hdr, payload_size);
+		break;
+
+	case STORE_TYPE_RAM_DATA_TYPE_EDK2FLASH:
+	case STORE_TYPE_FLASH_DATA_TYPE_RAW:
+	case STORE_TYPE_FLASH_DATA_TYPE_EDK2FLASH:
+		status = EFI_UNSUPPORTED;
+		break;
+
+	default:
+		status = EFI_INVALID_PARAMETER;
+		break;
+	}
+
+	return status;
 }
 
 static void set_var_raw_ram(struct mm_var_comm_header *comm_hdr,
@@ -286,10 +380,22 @@ enum rpmi_error mm_variable_handler(void *comm_buf, rpmi_uint64_t bufsize)
 	var_comm_hdr = (struct mm_var_comm_header *)comm_buf;
 
 	switch (var_comm_hdr->function) {
+	case MM_VAR_FN_GET_VARIABLE:
+		DPRINTF("Processing %s",
+			get_var_fn_string(var_comm_hdr->function));
+		status =
+		    validate_input(var_comm_hdr, comm_buf_payload_size, true);
+		if (status != EFI_SUCCESS)
+			break;
+
+		status = fn_get_variable(var_comm_hdr, comm_buf_payload_size);
+		break;
+
 	case MM_VAR_FN_SET_VARIABLE:
 		DPRINTF("Processing %s",
 			get_var_fn_string(var_comm_hdr->function));
-		status = validate_input(var_comm_hdr, comm_buf_payload_size);
+		status =
+		    validate_input(var_comm_hdr, comm_buf_payload_size, false);
 		if (status != EFI_SUCCESS)
 			break;
 

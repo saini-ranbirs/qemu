@@ -8,11 +8,16 @@
 
 #define MAX_BIT  0x8000000000000000ULL
 #define ENCODE_ERROR(code)  ((rpmi_uint64_t)(MAX_BIT | (code)))
+#define RETURN_ERROR(code)  (((rpmi_int64_t)(rpmi_uint64_t)(code)) < 0)
 
 #define EFI_SUCCESS            (rpmi_uint64_t)0
 #define EFI_INVALID_PARAMETER  ENCODE_ERROR(2)
 #define EFI_UNSUPPORTED        ENCODE_ERROR(3)
+#define EFI_BUFFER_TOO_SMALL   ENCODE_ERROR(5)
+#define EFI_NOT_FOUND          ENCODE_ERROR(14)
 #define EFI_ACCESS_DENIED      ENCODE_ERROR(15)
+
+#define EFI_ERROR(n)           RETURN_ERROR(n)
 
 // Basic data type definitions introduced in UEFI.
 struct efi_guid {
@@ -58,6 +63,7 @@ struct efi_mm_comm_header {
 
 #pragma pack()
 
+// The payload for this function is struct mm_var_comm_access_variable
 #define MM_VAR_FN_GET_VARIABLE  1
 
 #define MM_VAR_FN_GET_NEXT_VARIABLE_NAME  2
