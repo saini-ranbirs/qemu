@@ -8,6 +8,11 @@
 #include "mm_variable.h"
 
 #define VAR_MAX_INFOSIZE  1024	/* Max information size per MM variable */
+#define VAR_MAX_NUM       50	/* Total number of MM variables */
+
+static rpmi_uint8_t var_store[VAR_MAX_NUM][VAR_MAX_INFOSIZE];
+static rpmi_uint8_t store_count;
+static enum var_store_var_data_type store_n_data_type;
 
 static rpmi_uint8_t *m_var_buf_payload = NULL;
 static rpmi_uint32_t m_var_buf_payload_size;
@@ -41,7 +46,66 @@ static const char *get_var_fn_string(rpmi_uint32_t function_code)
 	}
 }
 
-#endif /* defined(ENABLE_DEBUG) && ENABLE_DEBUG */
+static void mm_memdump(const void *src, rpmi_size_t count, const char *name)
+{
+#define MAX_BYTES_PER_LINE  16
+#define MAX_LINES_PER_DUMP  25
+
+	size_t remaining = count, line_ctr = 0, byte_ctr, byte_ctr_max;
+	unsigned char buf_data[MAX_BYTES_PER_LINE];
+	const char *temp = src;
+
+	if (!remaining)
+		return;
+
+	DPRINTF("MM %s : %06lu", name, count);
+
+	while (remaining) {
+		byte_ctr = 0;
+
+		byte_ctr_max = (remaining >= MAX_BYTES_PER_LINE) ?
+		    MAX_BYTES_PER_LINE : remaining;
+
+		while (byte_ctr < byte_ctr_max) {
+			buf_data[byte_ctr] = *(temp + byte_ctr);
+			byte_ctr++;
+		}
+
+		/* For simplicity, fill rest with ZERO's if required */
+		while (byte_ctr < MAX_BYTES_PER_LINE) {
+			buf_data[byte_ctr] = 0x00;
+			byte_ctr++;
+		}
+
+		if (line_ctr < MAX_LINES_PER_DUMP) {
+			DPRINTF("%06lu "
+				"%02X%02X %02X%02X %02X%02X %02X%02X "
+				"%02X%02X %02X%02X %02X%02X %02X%02X",
+				count - remaining,
+				buf_data[1], buf_data[0], buf_data[3],
+				buf_data[2], buf_data[5], buf_data[4],
+				buf_data[7], buf_data[6], buf_data[9],
+				buf_data[8], buf_data[11], buf_data[10],
+				buf_data[13], buf_data[12], buf_data[15],
+				buf_data[14]);
+		}
+
+		temp = temp + byte_ctr_max;
+		remaining = remaining - byte_ctr_max;
+		line_ctr++;
+	}
+
+	DPRINTF("%06lu", count - remaining);
+}
+
+#else /* !(defined(ENABLE_DEBUG) && ENABLE_DEBUG) */
+
+static void mm_memdump(const void *src, rpmi_size_t count, const char *name)
+{
+	// Nothing to do
+}
+
+#endif /* !(defined(ENABLE_DEBUG) && ENABLE_DEBUG) */
 
 enum rpmi_error mm_variable_init(void)
 {
@@ -54,12 +118,132 @@ enum rpmi_error mm_variable_init(void)
 		return RPMI_ERR_FAILED;
 	}
 
+	store_n_data_type = STORE_TYPE_RAM_DATA_TYPE_RAW;
+	store_count = 0;
+
 	return RPMI_SUCCESS;
 }
 
 void mm_variable_term(void)
 {
 	rpmi_env_free(m_var_buf_payload);
+}
+
+static rpmi_uint64_t validate_input(struct mm_var_comm_header *comm_hdr,
+				    rpmi_uint32_t payload_size)
+{
+	struct mm_var_comm_access_variable *var;
+	rpmi_uint64_t infosize;
+
+	if (payload_size < offsetof(struct mm_var_comm_access_variable, name)) {
+		DPRINTF("MM communication buffer size invalid !!!");
+		return EFI_INVALID_PARAMETER;
+	}
+
+	/*
+	 * Copy the input communicate buffer payload to pre-allocated MM
+	 * variable buffer payload.
+	 */
+	rpmi_env_memcpy(m_var_buf_payload, comm_hdr->data, payload_size);
+	var = (struct mm_var_comm_access_variable *)m_var_buf_payload;
+
+	// Prevent infosize overflow
+	if ((((rpmi_uint64_t)(~0) - var->datasize) <
+	     offsetof(struct mm_var_comm_access_variable, name))
+	    ||
+	    (((rpmi_uint64_t)(~0) - var->namesize) <
+	     offsetof(struct mm_var_comm_access_variable, name) +
+	     var->datasize)) {
+		DPRINTF("infosize overflow !!!");
+		return EFI_ACCESS_DENIED;
+	}
+
+	infosize = offsetof(struct mm_var_comm_access_variable, name) +
+	    var->datasize + var->namesize;
+	if (infosize > payload_size) {
+		DPRINTF("Data size exceed communication buffer size limit !!!");
+		return EFI_ACCESS_DENIED;
+	}
+
+	if ((var->namesize < sizeof(rpmi_uint16_t)) ||
+	    (var->name[var->namesize / sizeof(rpmi_uint16_t) - 1] != L'\0')) {
+		// Ensure Variable Name is a Null-terminated string
+		DPRINTF("Variable Name NOT Null-terminated !!!");
+		return EFI_ACCESS_DENIED;
+	}
+
+	return EFI_SUCCESS;
+}
+
+static void set_var_raw_ram(struct mm_var_comm_header *comm_hdr,
+			    rpmi_uint32_t payload_size)
+{
+	struct mm_var_comm_access_variable *var1, *var2;
+	rpmi_uint8_t count = 0;
+
+	mm_memdump(comm_hdr->data, payload_size, "SET");
+	var1 = (struct mm_var_comm_access_variable *)comm_hdr->data;
+
+	/* Check if same Vendor GUID and Variable Name pre-exists */
+	while (count < store_count) {
+		/* Check Vendor GUID match first */
+		if (rpmi_env_memcmp(comm_hdr->data, &var_store[count],
+				    sizeof(struct efi_guid)) != 0) {
+			count++;
+			continue;
+		}
+
+		var2 = (struct mm_var_comm_access_variable *)&var_store[count];
+
+		/* Now check Variable Name match */
+		if ((var1->namesize == var2->namesize) &&
+		    (rpmi_env_memcmp(var1->name, var2->name,
+				     var1->namesize) == 0)) {
+			/* Match found, update the existing data */
+			DPRINTF("Update existing Variable at Pos = %d", count);
+			mm_memdump(&var_store[count], payload_size, "U1");
+			rpmi_env_memcpy(&var_store[count], comm_hdr->data,
+					payload_size);
+			mm_memdump(&var_store[count], payload_size, "U2");
+			break;
+		}
+
+		count++;
+	}
+
+	if (count == store_count) {
+		rpmi_env_memcpy(&var_store[count], comm_hdr->data,
+				payload_size);
+		mm_memdump(&var_store[count], payload_size, "NV");
+		store_count++;
+		DPRINTF("Added New Variable: Attribues = 0x%x, Total = %d",
+			var1->attr, store_count);
+	}
+}
+
+static rpmi_uint64_t fn_set_variable(struct mm_var_comm_header *comm_hdr,
+				     rpmi_uint32_t payload_size)
+{
+	rpmi_uint64_t status;
+
+	switch (store_n_data_type) {
+	case STORE_TYPE_RAM_DATA_TYPE_RAW:
+		set_var_raw_ram(comm_hdr, payload_size);
+		status = EFI_SUCCESS;
+		break;
+
+	case STORE_TYPE_RAM_DATA_TYPE_EDK2FLASH:
+	case STORE_TYPE_FLASH_DATA_TYPE_RAW:
+	case STORE_TYPE_FLASH_DATA_TYPE_EDK2FLASH:
+		status = EFI_UNSUPPORTED;
+		break;
+
+	default:
+		status = EFI_INVALID_PARAMETER;
+		break;
+	}
+
+	return status;
 }
 
 static inline rpmi_uint64_t fn_get_payload_size(rpmi_uint8_t *comm_hdr_data,
@@ -102,6 +286,16 @@ enum rpmi_error mm_variable_handler(void *comm_buf, rpmi_uint64_t bufsize)
 	var_comm_hdr = (struct mm_var_comm_header *)comm_buf;
 
 	switch (var_comm_hdr->function) {
+	case MM_VAR_FN_SET_VARIABLE:
+		DPRINTF("Processing %s",
+			get_var_fn_string(var_comm_hdr->function));
+		status = validate_input(var_comm_hdr, comm_buf_payload_size);
+		if (status != EFI_SUCCESS)
+			break;
+
+		status = fn_set_variable(var_comm_hdr, comm_buf_payload_size);
+		break;
+
 	case MM_VAR_FN_GET_PAYLOAD_SIZE:
 		DPRINTF("Processing %s",
 			get_var_fn_string(var_comm_hdr->function));
