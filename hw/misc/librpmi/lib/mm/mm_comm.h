@@ -71,6 +71,7 @@ struct efi_mm_comm_header {
 // The payload for this function is struct mm_var_comm_access_variable
 #define MM_VAR_FN_GET_VARIABLE  1
 
+// The payload for this function is struct mm_var_comm_get_next_var_name
 #define MM_VAR_FN_GET_NEXT_VARIABLE_NAME  2
 
 // The payload for this function is struct mm_var_comm_access_variable
@@ -129,6 +130,13 @@ enum var_store_var_data_type {
 	STORE_TYPE_RAM_DATA_TYPE_EDK2FLASH,
 	STORE_TYPE_FLASH_DATA_TYPE_RAW,
 	STORE_TYPE_FLASH_DATA_TYPE_EDK2FLASH,
+};
+
+// This structure is used to communicate with MM by GetNextVariableName.
+struct mm_var_comm_get_next_var_name {
+	struct efi_guid guid;
+	rpmi_uint64_t namesize;	// Return name buffer size
+	rpmi_uint16_t name[1];
 };
 
 struct mm_var_comm_get_payload_size {

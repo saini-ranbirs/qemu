@@ -185,6 +185,11 @@ static rpmi_uint64_t find_var_raw_ram(rpmi_uint16_t *varname,
 {
 	struct mm_var_comm_access_variable *var;
 
+	if (varname[0] == 0) {
+		DPRINTF("EFI_SUCCESS Curr = %d", store_ptr);
+		return EFI_SUCCESS;
+	}
+
 	while (store_ptr < store_count) {
 		var =
 		    (struct mm_var_comm_access_variable *)&var_store[store_ptr];
@@ -253,6 +258,99 @@ static rpmi_uint64_t fn_get_variable(struct mm_var_comm_header *comm_hdr,
 	switch (store_n_data_type) {
 	case STORE_TYPE_RAM_DATA_TYPE_RAW:
 		status = get_var_raw_ram(comm_hdr, payload_size);
+		break;
+
+	case STORE_TYPE_RAM_DATA_TYPE_EDK2FLASH:
+	case STORE_TYPE_FLASH_DATA_TYPE_RAW:
+	case STORE_TYPE_FLASH_DATA_TYPE_EDK2FLASH:
+		status = EFI_UNSUPPORTED;
+		break;
+
+	default:
+		status = EFI_INVALID_PARAMETER;
+		break;
+	}
+
+	return status;
+}
+
+static rpmi_uint64_t get_next_var_name_raw_ram(struct mm_var_comm_header
+					       *comm_hdr,
+					       rpmi_uint32_t payload_size)
+{
+	struct mm_var_comm_get_next_var_name *var;
+	rpmi_uint64_t status;
+	store_ptr = 0;
+	rpmi_env_memcpy(m_var_buf_payload, comm_hdr->data, payload_size);
+	var = (struct mm_var_comm_get_next_var_name *)m_var_buf_payload;
+	status = find_var_raw_ram(var->name, &var->guid);
+	DPRINTF("Status = 0x%lx Store Ptr = %d Store Count = %d",
+		status, store_ptr, store_count);
+	if (EFI_ERROR(status)) {
+		/*
+		 * For VariableName is an empty string, find_var_raw_ram() will
+		 * try to find and return the first qualified variable, and if
+		 * find_var_raw_ram() returns error (EFI_NOT_FOUND) as no any
+		 * variable is found, still return the error (EFI_NOT_FOUND).
+		 */
+		if (var->name[0] != 0) {
+			/*
+			 * For VariableName is not an empty string, and
+			 * find_var_raw_ram() returns error as VariableName and
+			 * VendorGuid are not a name and GUID of an existing
+			 * variable, there is no way to get next variable,
+			 * follow spec to return EFI_INVALID_PARAMETER.
+			 */
+			status = EFI_INVALID_PARAMETER;
+			DPRINTF("Status = 0x%lx Store Ptr = %d",
+				status, store_ptr);
+		}
+
+		DPRINTF("Status = 0x%lx Store Ptr = %d", status, store_ptr);
+		goto done;
+	}
+
+	if (var->name[0] != 0) {
+		// If variable name is not empty, get next variable.
+		store_ptr++;
+		if (store_ptr >= store_count)
+			status = EFI_NOT_FOUND;
+
+		DPRINTF("Status = 0x%lx Store Ptr = %d", status, store_ptr);
+		goto done;
+	}
+
+done:
+	if (!EFI_ERROR(status)) {
+		struct mm_var_comm_access_variable *avar;
+
+		avar =
+		    (struct mm_var_comm_access_variable *)&var_store[store_ptr];
+		if (avar->namesize && (avar->namesize <= var->namesize)) {
+			rpmi_env_memcpy(var->name, avar->name, avar->namesize);
+			rpmi_env_memcpy(&var->guid, &avar->guid,
+					sizeof(struct efi_guid));
+			status = EFI_SUCCESS;
+		} else {
+			status = EFI_BUFFER_TOO_SMALL;
+		}
+
+		var->namesize = avar->namesize;
+	}
+
+	rpmi_env_memcpy(comm_hdr->data, m_var_buf_payload, payload_size);
+
+	return status;
+}
+
+static rpmi_uint64_t fn_get_next_var_name(struct mm_var_comm_header *comm_hdr,
+					  rpmi_uint32_t payload_size)
+{
+	rpmi_uint64_t status;
+
+	switch (store_n_data_type) {
+	case STORE_TYPE_RAM_DATA_TYPE_RAW:
+		status = get_next_var_name_raw_ram(comm_hdr, payload_size);
 		break;
 
 	case STORE_TYPE_RAM_DATA_TYPE_EDK2FLASH:
@@ -389,6 +487,13 @@ enum rpmi_error mm_variable_handler(void *comm_buf, rpmi_uint64_t bufsize)
 			break;
 
 		status = fn_get_variable(var_comm_hdr, comm_buf_payload_size);
+		break;
+
+	case MM_VAR_FN_GET_NEXT_VARIABLE_NAME:
+		DPRINTF("Processing %s",
+			get_var_fn_string(var_comm_hdr->function));
+		status = fn_get_next_var_name(var_comm_hdr,
+					      comm_buf_payload_size);
 		break;
 
 	case MM_VAR_FN_SET_VARIABLE:
