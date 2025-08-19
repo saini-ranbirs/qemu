@@ -514,6 +514,12 @@ enum rpmi_error mm_variable_handler(void *comm_buf, rpmi_uint64_t bufsize)
 					     comm_buf_payload_size);
 		break;
 
+	case MM_VAR_FN_READY_TO_BOOT:
+		DPRINTF("Processing (dummy) %s",
+			get_var_fn_string(var_comm_hdr->function));
+		status = EFI_SUCCESS;
+		break;
+
 	default:
 		status = EFI_UNSUPPORTED;
 		DPRINTF("%s not supported",
