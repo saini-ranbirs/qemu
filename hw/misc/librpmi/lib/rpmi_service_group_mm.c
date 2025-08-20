@@ -46,6 +46,7 @@ struct rpmi_mm_comm_header_guid mm_comm_hdr_guid_lut[] = {
 	[1] { EFI_MM_VAR_PROTOCOL_GUID, EFI_MM_VAR_PROTOCOL_GUID_DATA },
 	[2] { EFI_MM_VAR_POLICY_GUID, EFI_MM_VAR_POLICY_GUID_DATA },
 	[3] { EFI_MM_END_OF_DXE_GUID, EFI_MM_END_OF_DXE_GUID_DATA },
+	[4] { EFI_MM_READY_TO_BOOT_GUID, EFI_MM_READY_TO_BOOT_GUID_DATA },
 };
 
 static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
@@ -84,6 +85,7 @@ static const char *get_hdr_guid_string(enum efi_mm_header_guid guid)
 		STRING_CASE(EFI_MM_VAR_PROTOCOL_GUID);
 		STRING_CASE(EFI_MM_VAR_POLICY_GUID);
 		STRING_CASE(EFI_MM_END_OF_DXE_GUID);
+		STRING_CASE(EFI_MM_READY_TO_BOOT_GUID);
 
 	default:
 		STRING_CASE(EFI_MM_HDR_GUID_UNSUPPORTED);
@@ -157,6 +159,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 
 	case EFI_MM_VAR_POLICY_GUID:
 	case EFI_MM_END_OF_DXE_GUID:
+	case EFI_MM_READY_TO_BOOT_GUID:
 		DPRINTF("Handling (dummy) header %s",
 			get_hdr_guid_string(mm_comm_hdr_guid_lut[index].name));
 		status = RPMI_SUCCESS;
