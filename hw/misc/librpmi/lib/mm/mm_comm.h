@@ -34,6 +34,7 @@ enum efi_mm_header_guid {
 	EFI_MM_HDR_GUID_NONE = EFI_MM_HDR_GUID_UNSUPPORTED,
 	EFI_MM_VAR_PROTOCOL_GUID,
 	EFI_MM_VAR_POLICY_GUID,
+	EFI_MM_END_OF_DXE_GUID,
 };
 
 #define EFI_MM_HDR_GUID_NONE_DATA	\
@@ -47,6 +48,10 @@ enum efi_mm_header_guid {
 #define EFI_MM_VAR_POLICY_GUID_DATA	\
 	{ 0xda1b0d11, 0xd1a7, 0x46c4,	\
 	  { 0x9d, 0xc9, 0xf3, 0x71, 0x48, 0x75, 0xc6, 0xeb } }
+
+#define EFI_MM_END_OF_DXE_GUID_DATA	\
+	{ 0x2ce967a, 0xdd7e, 0x4ffc, 	\
+	  { 0x9e, 0xe7, 0x81, 0x0c, 0xf0, 0x47, 0x08, 0x80 } }
 
 #pragma pack(1)
 
