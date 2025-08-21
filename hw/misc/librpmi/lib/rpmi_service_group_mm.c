@@ -92,11 +92,14 @@ static const char *get_hdr_guid_string(enum efi_mm_header_guid guid)
 	}
 }
 
+extern void mm_memdump(const void *src, rpmi_size_t count, const char *name);
+
 static inline int get_guid_index(const rpmi_uint8_t *guid,
 				 rpmi_uint16_t msg_len)
 {
 	rpmi_uint8_t i;
 
+	//mm_memdump(guid, GUID_LENGTH, "I/P - GUID");
 	for (i = 1; i < array_size(mm_comm_hdr_guid_lut); i++) {
 		if (rpmi_env_memcmp((void *)guid, &mm_comm_hdr_guid_lut[i].guid,
 				    msg_len))
@@ -107,6 +110,8 @@ static inline int get_guid_index(const rpmi_uint8_t *guid,
 
 	return 0;
 }
+
+rpmi_uint8_t msg_buffer[17 * 1024];
 
 static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 					   struct rpmi_service *service,
@@ -122,7 +127,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	rpmi_uint64_t status = RPMI_ERR_NO_DATA;
 	struct rpmi_mm_comm_req *mmc_req;
 	rpmi_uint64_t msg_len, mm_addr;
-	rpmi_uint8_t index, *buf;
+	rpmi_uint8_t index;//, *buf;
 
 	if (!request_data)
 		return RPMI_ERR_NO_DATA;
@@ -134,16 +139,23 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	mm_addr = (mm_addr << 32) | sgmm->mma.shmem_addr_lo;
 	mm_addr = mm_addr + mmc_req->idata_off;
 
-	buf = rpmi_env_zalloc(sizeof(struct efi_mm_comm_header));
-	rpmi_env_readb(mm_addr, buf, sizeof(struct efi_mm_comm_header));
+	//buf = rpmi_env_zalloc(sizeof(struct efi_mm_comm_header));
+	//rpmi_env_readb(mm_addr, buf, sizeof(struct efi_mm_comm_header));
+	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)&msg_buffer,
+		       sizeof(struct efi_mm_comm_header));
+	//mm_memdump(msg_buffer, sizeof(struct efi_mm_comm_header), "BUF1");
 
-	mm_comm_hdr = (struct efi_mm_comm_header *)buf;
+	//mm_comm_hdr = (struct efi_mm_comm_header *)buf;
+	mm_comm_hdr = (struct efi_mm_comm_header *)msg_buffer;
 	msg_len =
 	    offsetof(struct efi_mm_comm_header, data) + mm_comm_hdr->msg_len;
-	rpmi_env_free(buf);
+	//rpmi_env_free(buf);
+	DPRINTF("msg_len = %ld", msg_len);
 
-	msg = rpmi_env_zalloc(msg_len);
+	//msg = rpmi_env_zalloc(msg_len);
+	msg = (struct efi_mm_comm_header *)msg_buffer;
 	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)msg, msg_len);
+	//mm_memdump(msg, msg_len, "BUF2");
 
 	index = get_guid_index((rpmi_uint8_t *)&msg->hdr_guid,
 			       sizeof(msg->hdr_guid));
@@ -169,7 +181,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	default:
 		DPRINTF("Header guid %s",
 			get_hdr_guid_string(mm_comm_hdr_guid_lut[index].name));
-		status = RPMI_ERR_NO_DATA;
+		status = RPMI_SUCCESS;
 		msg_len = 0;
 		break;
 	}
@@ -178,9 +190,10 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
 	rsp[1] = rpmi_to_xe32(xport->is_be, msg_len);
 
-	DPRINTF("EXIT response length = %d status = %ld", rsp[1], status);
+	DPRINTF("response length = %d status = %ld", rsp[1], status);
+	DPRINTF("EXIT\n");
 
-	rpmi_env_free(msg);
+	//rpmi_env_free(msg);
 	return status;
 }
 

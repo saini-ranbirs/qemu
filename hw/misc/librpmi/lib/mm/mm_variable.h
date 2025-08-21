@@ -16,7 +16,7 @@
 #include "stdarg.h"
 #include "string.h"
 
-#define PREFIX_STR  "\n== LIBRPMI: MM ===============================> %s: %u: "
+#define PREFIX_STR  "\n== LIBRPMI: MM: %s: %03u: "
 
 #define DPRINTF(msg...)							\
 	{								\
