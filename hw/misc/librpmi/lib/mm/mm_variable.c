@@ -658,6 +658,7 @@ enum rpmi_error mm_variable_handler(void *comm_buf, rpmi_uint64_t bufsize)
 		break;
 
 	case MM_VAR_FN_READY_TO_BOOT:
+	case MM_VAR_FN_EXIT_BOOT_SERVICE:
 		DPRINTF("Processing (dummy) %s",
 			get_var_fn_string(var_comm_hdr->function));
 		status = EFI_SUCCESS;
