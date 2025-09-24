@@ -36,6 +36,7 @@ enum efi_mm_header_guid {
 	EFI_MM_VAR_POLICY_GUID,
 	EFI_MM_END_OF_DXE_GUID,
 	EFI_MM_READY_TO_BOOT_GUID,
+	EFI_MM_EXIT_BOOT_SVC_GUID,
 };
 
 #define EFI_MM_HDR_GUID_NONE_DATA	\
@@ -57,6 +58,10 @@ enum efi_mm_header_guid {
 #define EFI_MM_READY_TO_BOOT_GUID_DATA	\
 	{ 0x7ce88fb3, 0x4bd7, 0x4679,	\
 	  { 0x87, 0xa8, 0xa8, 0xd8, 0xde, 0xe5, 0x0d, 0x2b } }
+
+#define EFI_MM_EXIT_BOOT_SVC_GUID_DATA	\
+	{ 0x27abf055, 0xb1b8, 0x4c26,	\
+	  { 0x80, 0x48, 0x74, 0x8f, 0x37, 0xba, 0xa2, 0xdf } }
 
 #pragma pack(1)
 
