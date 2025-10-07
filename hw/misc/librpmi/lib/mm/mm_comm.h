@@ -81,6 +81,13 @@ struct efi_mm_comm_header {
 	rpmi_uint8_t data[1];
 };
 
+struct efi_var_policy_comm_header {
+	rpmi_uint32_t signature;
+	rpmi_uint32_t revision;
+	rpmi_uint32_t command;
+	rpmi_uint64_t result;
+};
+
 #pragma pack()
 
 // The payload for this function is struct mm_var_comm_access_variable
