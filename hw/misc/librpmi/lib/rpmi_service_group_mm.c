@@ -7,6 +7,8 @@
 #include "librpmi_internal.h"
 #include "rpmi_mm.h"
 
+#define DEBUG 1
+
 #ifdef DEBUG
 #define PREFIX_STR  "== LIBRPMI: MM: =========> %s: %03u: "
 
