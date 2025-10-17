@@ -323,6 +323,14 @@ enum rpmi_cppc_service_id {
 	RPMI_CPPC_SRV_ID_MAX
 };
 
+/** RPMI Management Mode (MM) ServiceGroup Service IDs */
+enum rpmi_mm_service_id {
+	RPMI_MM_SRV_ENABLE_NOTIFICATION	= 0x01,
+	RPMI_MM_SRV_GET_ATTRIBUTES	= 0x02,
+	RPMI_MM_SRV_COMMUNICATE		= 0x03,
+	RPMI_MM_SRV_ID_MAX
+};
+
 /** @} */
 
 /****************************************************************************/
@@ -1558,6 +1566,122 @@ rpmi_service_group_sysmsi_create(rpmi_uint32_t num_msi,
 				 rpmi_uint32_t p2a_msi_index,
 				 const struct rpmi_sysmsi_platform_ops *ops,
 				 void *ops_priv);
+
+/** @} */
+
+/******************************************************************************/
+
+/**
+ * \defgroup LIBRPMI_MMSRVGRP_INTERFACE RPMI MM Service Group Library Interface
+ * @brief Global functions and data structures implemented by the RPMI library
+ * for RPMI Management Mode service group.
+ * @{
+ */
+
+/** RPMI MM instance types */
+enum rpmi_mm_instance_type {
+	RPMI_MM_INSTANCE_EFI,
+	RPMI_MM_INSTANCE_MAX
+};
+
+/** Platform specific MM EFI operations */
+struct rpmi_mm_efi_platform_ops {
+	rpmi_uint64_t	(*get_variable)(void *priv, const rpmi_uint8_t *data,
+					rpmi_uint32_t datasize);
+
+	rpmi_uint64_t	(*get_next_variable_name)(void *priv,
+						  const rpmi_uint8_t *data,
+						  rpmi_uint32_t datasize);
+
+	rpmi_uint64_t	(*set_variable)(void *priv, const rpmi_uint8_t *data,
+					rpmi_uint32_t datasize);
+};
+
+/** RPMI Management Mode (MM) structure to create an MM group instance */
+struct rpmi_mm {
+	/** MM shared memory address */
+	rpmi_uint64_t			shmem_addr;
+
+	/** MM shared memory size */
+	rpmi_uint32_t			shmem_size;
+
+	/** MM instance type */
+	enum rpmi_mm_instance_type	inst_type;
+
+	union rpmi_mm_instance_platform_ops {
+		/** Details required by MM EFI instance */
+		struct rpmi_mm_efi {
+			/** Platform MM EFI operations */
+			const struct rpmi_mm_efi_platform_ops	*ops;
+
+			/** Private data of platform MM EFI operations */
+			void 					*ops_priv;
+		} inst_efi;
+
+		/**
+		 * Nothing for MM non-EFI instance at present. So, this is just
+		 * a placeholder for any new MM instance type addition in future,
+		 * and then it will be replaced by appropriate requirement.
+		 */
+		void			*nothing;
+	} u;
+};
+
+/** Basic EFI error defines */
+#define MAX_BIT			(0x8000000000000000ULL)
+
+#define ENCODE_ERROR(code)	((rpmi_uint64_t)(MAX_BIT | code))
+#define RETURN_ERROR(code)	(((rpmi_int64_t)(rpmi_uint64_t)(code)) < 0)
+
+#define EFI_SUCCESS		((rpmi_uint64_t)0)
+#define EFI_INVALID_PARAMETER	ENCODE_ERROR(2)
+#define EFI_UNSUPPORTED		ENCODE_ERROR(3)
+#define EFI_BUFFER_TOO_SMALL	ENCODE_ERROR(5)
+#define EFI_NOT_FOUND		ENCODE_ERROR(14)
+#define EFI_ACCESS_DENIED	ENCODE_ERROR(15)
+
+#define EFI_ERROR(n)		RETURN_ERROR(n)
+
+/** Basic data type definition introduced in UEFI */
+struct efi_guid {
+	rpmi_uint32_t	data1;
+	rpmi_uint16_t	data2;
+	rpmi_uint16_t	data3;
+	rpmi_uint8_t	data4[8];
+};
+
+#define GUID_LENGTH	16	/* in bytes */
+
+/** Structure used to communicate with MM EFI via SetVariable/GetVariable */
+struct efi_var_access_variable {
+	struct efi_guid	guid;
+	rpmi_uint64_t	datasize;
+	rpmi_uint64_t	namesize;
+	rpmi_uint32_t	attr;
+	rpmi_uint16_t	name[1];
+};
+
+/** Structure used to communicate with MM EFI via GetNextVariableName */
+struct efi_var_get_next_var_name {
+	struct efi_guid	guid;
+	rpmi_uint64_t	namesize;
+	rpmi_uint16_t	name[1];
+};
+
+/**
+ * @brief Create a management mode (MM) service group instance
+ *
+ * @param[in] mm	pointer to MM instance
+ * @return pointer to RPMI service group instance upon success and NULL upon failure
+ */
+struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mm *mm);
+
+/**
+ * @brief Destroy (or free) a management mode (MM) service group instance
+ *
+ * @param[in] group	pointer to RPMI service group instance
+ */
+void rpmi_service_group_mm_destroy(struct rpmi_service_group *group);
 
 /** @} */
 

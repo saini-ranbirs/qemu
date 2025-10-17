@@ -7,6 +7,9 @@
 lib-objs-y += rpmi_context.o
 lib-objs-y += rpmi_hsm.o
 lib-objs-y += rpmi_service_group_hsm.o
+lib-objs-y += rpmi_service_group_mm.o
+lib-objs-y += mm/rpmi_mm_common.o
+lib-objs-y += mm/rpmi_mm_efi.o
 lib-objs-y += rpmi_service_group_sysmsi.o
 lib-objs-y += rpmi_service_group_sysreset.o
 lib-objs-y += rpmi_service_group_syssusp.o
