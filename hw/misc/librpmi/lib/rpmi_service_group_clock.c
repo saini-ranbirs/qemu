@@ -346,6 +346,8 @@ rpmi_clock_tree_init(rpmi_uint32_t clock_count,
 
 	struct rpmi_clock *clock_tree =
 		rpmi_env_zalloc(sizeof(struct rpmi_clock) * clock_count);
+	if (!clock_tree)
+		return NULL;
 
 	/* initialize all clocks instances */
 	for (clkid = 0; clkid < clock_count; clkid++) {
@@ -769,7 +771,7 @@ done:
 static struct rpmi_service rpmi_clock_services[RPMI_CLK_SRV_ID_MAX] = {
 	[RPMI_CLK_SRV_ENABLE_NOTIFICATION] = {
 		.service_id = RPMI_CLK_SRV_ENABLE_NOTIFICATION,
-		.min_a2p_request_datalen = 4,
+		.min_a2p_request_datalen = 8,
 		.process_a2p_request = NULL,
 	},
 	[RPMI_CLK_SRV_GET_NUM_CLOCKS] = {
