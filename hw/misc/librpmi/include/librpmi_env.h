@@ -153,7 +153,8 @@ static inline rpmi_size_t rpmi_env_strnlen(const char *str, rpmi_size_t count)
  * @param[in] count	number of max chars to count
  * @return char *	pointer to string destination buffer
  */
-static inline char *rpmi_env_strncpy(char *dest, const char *src, rpmi_size_t count)
+static inline char *rpmi_env_strncpy(char *dest, const char *src,
+				     rpmi_size_t count)
 {
 	char *ret = dest;
 
@@ -420,12 +421,50 @@ static inline rpmi_uint32_t rpmi_to_xe32(rpmi_bool_t is_be, rpmi_uint32_t val)
  */
 
 /**
- * @brief Write 4-bytes to address in little-endian byte-order
+ * @brief Read data (wordwise/4-bytes) from address in little-endian byte-order
+ *
+ * @param[in] addr	64-bit address
+ * @param[in] val	destination where words read are copied
+ * @param[in] len	number of data words to read
+ */
+void rpmi_env_readw(rpmi_uint64_t addr, rpmi_uint32_t *val, rpmi_uint32_t len);
+
+/**
+ * @brief Read data (bytewise/1-byte) from address
+ *
+ * @param[in] addr	64-bit address
+ * @param[in] val	destination where bytes read are copied
+ * @param[in] len	number of data bytes to read
+ */
+void rpmi_env_readb(rpmi_uint64_t addr, rpmi_uint8_t *val, rpmi_uint32_t len);
+
+/** @} */
+
+/******************************************************************************/
+
+/**
+ * \defgroup MMIO_ENV MMIO Read/Write Environment Functions
+ * @brief System-wide memory mapped input/output (MMIO) read/write functions
+ * to be implemented by the platform firmware.
+ * @{
+ */
+
+/**
+ * @brief Write data (wordwise/4-bytes) to address in little-endian byte-order
  *
  * @param[in] addr	64-bit address
  * @param[in] val	4-byte data to write
  */
 void rpmi_env_writel(rpmi_uint64_t addr, rpmi_uint32_t val);
+
+/**
+ * @brief Write data (bytewise/1-byte) to address
+ *
+ * @param[in] addr	64-bit address
+ * @param[in] src	source of data bytes
+ * @param[in] len	number of data bytes to write
+ */
+void rpmi_env_writeb(rpmi_uint64_t addr, rpmi_uint8_t *src, rpmi_uint32_t len);
 
 /** @} */
 
@@ -449,4 +488,4 @@ int __printf(1, 2) rpmi_env_printf(const char *format, ...);
 
 /** @} */
 
-#endif  /* __LIBRPMI_ENV_H__ */
+#endif /* __LIBRPMI_ENV_H__ */
