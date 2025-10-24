@@ -49,16 +49,15 @@ static rpmi_uint64_t find_var_raw_ram(rpmi_uint16_t *varname,
     return (var_ptr >= var_count) ? EFI_NOT_FOUND : EFI_SUCCESS;
 }
 
-static rpmi_uint64_t get_var_raw_ram(void *priv, const rpmi_uint8_t *data,
-                                     rpmi_uint32_t datasize)
+static rpmi_uint64_t
+get_var_raw_ram(void *priv, struct mm_var_comm_access_variable *var1,
+                rpmi_uint32_t datasize)
 {
-    struct mm_var_comm_access_variable *var1, *var2;
+    struct mm_var_comm_access_variable *var2;
     rpmi_uint64_t status;
     void *var1_data;
 
     var_ptr = 0;
-    var1 = (struct mm_var_comm_access_variable *)data;
-
     status = find_var_raw_ram(var1->name, &var1->guid);
     if (EFI_ERROR(status)) {
         return status;
@@ -90,22 +89,19 @@ done:
             var1->attr = var2->attr;
         }
 
-        rpmi_env_memcpy((void *)data, &var_store[var_ptr], datasize);
+        rpmi_env_memcpy((void *)var1, &var_store[var_ptr], datasize);
     }
 
     return status;
 }
 
-static rpmi_uint64_t get_next_var_name_raw_ram(void *priv,
-                                               const rpmi_uint8_t *data,
-                                               rpmi_uint32_t datasize)
+static rpmi_uint64_t
+get_next_var_name_raw_ram(void *priv, struct mm_var_comm_get_next_var_name *var,
+                          rpmi_uint32_t datasize)
 {
-    struct mm_var_comm_get_next_var_name *var;
     rpmi_uint64_t status;
 
     var_ptr = 0;
-    var = (struct mm_var_comm_get_next_var_name *)data;
-
     status = find_var_raw_ram(var->name, &var->guid);
     info_report("Status = 0x%lx Var Ptr = %d Var Count = %d",
                 status, var_ptr, var_count);
@@ -165,18 +161,17 @@ done:
     return status;
 }
 
-static rpmi_uint64_t set_var_raw_ram(void *priv, const rpmi_uint8_t *data,
+static rpmi_uint64_t set_var_raw_ram(void *priv,
+                                     struct mm_var_comm_access_variable *var1,
                                      rpmi_uint32_t datasize)
 {
-    struct mm_var_comm_access_variable *var1, *var2;
+    struct mm_var_comm_access_variable *var2;
     rpmi_uint8_t count = 0;
-
-    var1 = (struct mm_var_comm_access_variable *)data;
 
     /* Check if same Vendor GUID and Variable Name pre-exists */
     while (count < var_count) {
         /* Check Vendor GUID match first */
-        if (rpmi_env_memcmp((void *)data, &var_store[count],
+        if (rpmi_env_memcmp((void *)var1, &var_store[count],
                             sizeof(struct efi_guid)) != 0) {
             count++;
             continue;
@@ -188,7 +183,7 @@ static rpmi_uint64_t set_var_raw_ram(void *priv, const rpmi_uint8_t *data,
         if ((var1->namesize == var2->namesize) &&
             (rpmi_env_memcmp(var1->name, var2->name, var1->namesize) == 0)) {
             /* Match found, update the existing data */
-            rpmi_env_memcpy(&var_store[count], data, datasize);
+            rpmi_env_memcpy(&var_store[count], var1, datasize);
             info_report("Updated Variable: Pos = %d", count);
             break;
         }
@@ -197,7 +192,7 @@ static rpmi_uint64_t set_var_raw_ram(void *priv, const rpmi_uint8_t *data,
     }
 
     if (count == var_count) {
-        rpmi_env_memcpy(&var_store[count], data, datasize);
+        rpmi_env_memcpy(&var_store[count], var1, datasize);
         var_count++;
         info_report("Added Variable: Attributes = 0x%x Var Count = %d",
                     var1->attr, var_count);

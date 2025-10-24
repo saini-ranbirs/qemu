@@ -216,8 +216,10 @@ static rpmi_uint64_t fn_get_variable(struct rpmi_service_group_mm *sgmm,
 	if (status != EFI_SUCCESS)
 		return status;
 
-	return sgmm->ops->get_variable(sgmm->ops_priv, comm_hdr->data,
-				       payload_size);
+	return sgmm->ops->get_variable
+	    (sgmm->ops_priv,
+	     (struct mm_var_comm_access_variable *)comm_hdr->data,
+	     payload_size);
 }
 
 static rpmi_uint64_t validate_name(struct mm_var_comm_header *comm_hdr,
@@ -277,8 +279,10 @@ static rpmi_uint64_t fn_get_next_var_name(struct rpmi_service_group_mm *sgmm,
 	if (status != EFI_SUCCESS)
 		return status;
 
-	return sgmm->ops->get_next_variable_name(sgmm->ops_priv, comm_hdr->data,
-						 payload_size);
+	return sgmm->ops->get_next_variable_name
+	    (sgmm->ops_priv,
+	     (struct mm_var_comm_get_next_var_name *)comm_hdr->data,
+	     payload_size);
 }
 
 static rpmi_uint64_t fn_set_variable(struct rpmi_service_group_mm *sgmm,
@@ -291,8 +295,10 @@ static rpmi_uint64_t fn_set_variable(struct rpmi_service_group_mm *sgmm,
 	if (status != EFI_SUCCESS)
 		return status;
 
-	return sgmm->ops->set_variable(sgmm->ops_priv, comm_hdr->data,
-				       payload_size);
+	return sgmm->ops->set_variable
+	    (sgmm->ops_priv,
+	     (struct mm_var_comm_access_variable *)comm_hdr->data,
+	     payload_size);
 }
 
 static inline rpmi_uint64_t fn_get_payload_size(rpmi_uint8_t *comm_hdr_data,

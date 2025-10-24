@@ -1180,14 +1180,17 @@ void rpmi_service_group_hsm_destroy(struct rpmi_service_group *group);
 
 /** Platform specific MM operations (synchronous) */
 struct rpmi_mm_platform_ops {
-	rpmi_uint64_t (*get_variable)(void *priv, const rpmi_uint8_t *data,
+	rpmi_uint64_t (*get_variable)(void *priv,
+				      struct mm_var_comm_access_variable *var,
 				      rpmi_uint32_t datasize);
 
 	rpmi_uint64_t
-	    (*get_next_variable_name)(void *priv, const rpmi_uint8_t *data,
+	    (*get_next_variable_name)(void *priv,
+				      struct mm_var_comm_get_next_var_name *var,
 				      rpmi_uint32_t datasize);
 
-	rpmi_uint64_t (*set_variable)(void *priv, const rpmi_uint8_t *data,
+	rpmi_uint64_t (*set_variable)(void *priv,
+				      struct mm_var_comm_access_variable *var,
 				      rpmi_uint32_t datasize);
 };
 
