@@ -4293,7 +4293,8 @@ foreach target : target_dirs
     arch_deps += t.dependencies()
 
     if target_name == 'riscv64' or target_name == 'riscv32'
-        target_inc += include_directories('hw/misc/librpmi/include')
+      target_inc += include_directories('hw/misc/librpmi/include')
+      target_inc += include_directories('hw/misc/librpmi/lib')
     endif
 
     hw_dir = target_name == 'sparc64' ? 'sparc64' : target_base_arch
