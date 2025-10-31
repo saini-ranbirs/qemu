@@ -21,7 +21,7 @@
 
 struct rpmi_service_group_mm {
 	rpmi_uint32_t mm_version;
-	struct rpmi_mm mm;
+	struct rpmi_mm *mm;
 	struct rpmi_service_group group;
 };
 
@@ -35,21 +35,27 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 {
 	struct rpmi_service_group_mm *sgmm = group->priv;
 	rpmi_uint32_t *rsp = (void *)response_data;
+	rpmi_uint64_t shmem_addr;
+	rpmi_uint32_t shmem_size;
 	enum rpmi_error status;
 
 	if (sgmm && response_datalen) {
-		*response_datalen = 5 * sizeof(rpmi_uint32_t);
-		rsp[1] = rpmi_to_xe32(xport->is_be, sgmm->mm_version);
-		rsp[2] = rpmi_to_xe32(xport->is_be,
-				      sgmm->mm.shmem_addr & 0xFFFFFFFF);
-		rsp[3] = rpmi_to_xe32(xport->is_be, sgmm->mm.shmem_addr >> 32);
-		rsp[4] = rpmi_to_xe32(xport->is_be, sgmm->mm.shmem_size);
-		status = RPMI_SUCCESS;
+		status = rpmi_mm_instance_meminfo(sgmm->mm, &shmem_addr,
+						  &shmem_size);
+		if (status != RPMI_SUCCESS)
+			status = RPMI_ERR_NO_DATA;
 	} else {
 		status = RPMI_ERR_NO_DATA;
 	}
 
 	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
+	if (status == RPMI_SUCCESS) {
+		*response_datalen = 5 * sizeof(rpmi_uint32_t);
+		rsp[1] = rpmi_to_xe32(xport->is_be, sgmm->mm_version);
+		rsp[2] = rpmi_to_xe32(xport->is_be, shmem_addr & 0xFFFFFFFF);
+		rsp[3] = rpmi_to_xe32(xport->is_be, shmem_addr >> 32);
+		rsp[4] = rpmi_to_xe32(xport->is_be, shmem_size);
+	}
 
 	return RPMI_SUCCESS;
 }
@@ -71,7 +77,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 
 	DPRINTF("Service group = %s", group->name);
 
-	status = rpmi_mm_instance_communicate(&sgmm->mm, service, xport,
+	status = rpmi_mm_instance_communicate(sgmm->mm, service, xport,
 					      request_datalen, request_data,
 					      response_datalen, response_data);
 
@@ -113,13 +119,6 @@ struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mm *mm)
 		return NULL;
 	}
 
-	/* inst_type should be in desired range */
-	if ((mm->inst_type < RPMI_MM_INSTANCE_EFI) ||
-	    (mm->inst_type >= RPMI_MM_INSTANCE_MAX)) {
-		DPRINTF("invalid parameter: service type");
-		return NULL;
-	}
-
 	/* Allocate MM service group */
 	sgmm = rpmi_env_zalloc(sizeof(*sgmm));
 	if (!sgmm) {
@@ -130,19 +129,10 @@ struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mm *mm)
 	sgmm->mm_version =
 	    ((RPMI_MM_MAJOR_VER << MM_MAJOR_VER_SHIFT) & MM_MAJOR_VER_MASK) |
 	    ((RPMI_MM_MINOR_VER & MM_MINOR_VER_MASK));
-	rpmi_env_memcpy(&sgmm->mm, mm, sizeof(sgmm->mm));
+	sgmm->mm = mm;
 
 	group = &sgmm->group;
-
-	switch (sgmm->mm.inst_type) {
-	case RPMI_MM_INSTANCE_EFI:
-		group->name = "mm_efi";
-		break;
-
-	default:
-		break;
-	}
-
+	group->name = "mm";
 	group->servicegroup_id = RPMI_SRVGRP_MANAGEMENT_MODE;
 	group->servicegroup_version =
 	    RPMI_BASE_VERSION(RPMI_SPEC_VERSION_MAJOR, RPMI_SPEC_VERSION_MINOR);

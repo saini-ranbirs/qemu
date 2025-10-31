@@ -1597,35 +1597,30 @@ struct rpmi_mm_efi_platform_ops {
 					rpmi_uint32_t datasize);
 };
 
-/** RPMI Management Mode (MM) structure to create an MM group instance */
-struct rpmi_mm {
-	/** MM shared memory address */
-	rpmi_uint64_t			shmem_addr;
+union rpmi_mm_instance_platform_ops {
+	/** Details required by MM EFI instance */
+	struct rpmi_mm_efi {
+		/** Platform MM EFI operations */
+		const struct rpmi_mm_efi_platform_ops	*ops;
 
-	/** MM shared memory size */
-	rpmi_uint32_t			shmem_size;
+		/** Private data of platform MM EFI operations */
+		void 					*ops_priv;
+	} inst_efi;
 
-	/** MM instance type */
-	enum rpmi_mm_instance_type	inst_type;
-
-	union rpmi_mm_instance_platform_ops {
-		/** Details required by MM EFI instance */
-		struct rpmi_mm_efi {
-			/** Platform MM EFI operations */
-			const struct rpmi_mm_efi_platform_ops	*ops;
-
-			/** Private data of platform MM EFI operations */
-			void 					*ops_priv;
-		} inst_efi;
-
-		/**
-		 * Nothing for MM non-EFI instance at present. So, this is just
-		 * a placeholder for any new MM instance type addition in future,
-		 * and then it will be replaced by appropriate requirement.
-		 */
-		void			*nothing;
-	} u;
+	/**
+	 * Nothing for MM non-EFI instance at present. So, this is just a
+	 * placeholder for any new MM instance type addition in future, &
+	 * then it will be replaced by appropriate requirement.
+	 */
+	void			*nothing;
 };
+
+struct rpmi_mm;
+
+struct rpmi_mm *rpmi_mm_create(rpmi_uint64_t shmem_addr,
+			       rpmi_uint32_t shmem_size,
+			       enum rpmi_mm_instance_type inst_type,
+			       union rpmi_mm_instance_platform_ops *mmip_ops);
 
 /** Basic EFI error defines */
 #define MAX_BIT			(0x8000000000000000ULL)

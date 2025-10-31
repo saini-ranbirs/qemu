@@ -41,4 +41,8 @@ enum rpmi_error rpmi_mm_instance_communicate(struct rpmi_mm *mm,
 					     rpmi_uint16_t *rsp_datalen,
 					     rpmi_uint8_t *rsp_data);
 
+enum rpmi_error rpmi_mm_instance_meminfo(struct rpmi_mm *mm,
+					 rpmi_uint64_t *mem_addr,
+					 rpmi_uint32_t *mem_size);
+
 #endif /* __RPMI_MM_COMMON_H__ */
