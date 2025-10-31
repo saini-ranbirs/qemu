@@ -1627,6 +1627,17 @@ struct rpmi_mm {
 	} u;
 };
 
+struct rpmi_mmi;
+
+/**
+ * struct rpmi_mm can go inside rpmi_mm.c in place of struct rpmi_mmi and it
+ * will take the parameters from the caller individually like shmem_addr,
+ * shmem_size, svc_type, platform_ops, ... and bundle them together inside a
+ * struct rpmi_mm and return its pointer only.
+ * The caller has no further information about the pointer/ inside struct.
+ */
+struct rpmi_mmi *rpmi_mm_create(struct rpmi_mm *mmi);
+
 /** Basic EFI error defines */
 #define MAX_BIT			(0x8000000000000000ULL)
 
@@ -1674,7 +1685,7 @@ struct efi_var_get_next_var_name {
  * @param[in] mm	pointer to MM instance
  * @return pointer to RPMI service group instance upon success and NULL upon failure
  */
-struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mm *mm);
+struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mmi *mmi);
 
 /**
  * @brief Destroy (or free) a management mode (MM) service group instance

@@ -217,16 +217,18 @@ int add_mm_group(struct rpmi_context *rctx, hwaddr mmshm_addr, int mmshm_size);
 int add_mm_group(struct rpmi_context *rctx, hwaddr mmshm_addr, int mmshm_size)
 {
     struct rpmi_service_group *grp;
-    struct rpmi_mm mmg;
+    struct rpmi_mm mm;
+    void *mmi;
 
     /* Create and add MM EFI service group */
-    mmg.shmem_addr = mmshm_addr;
-    mmg.shmem_size = mmshm_size;
-    mmg.svc_type = RPMI_MM_SERVICE_EFI;
-    mmg.u.svc_efi.ops = &efi_ops;
-    mmg.u.svc_efi.ops_priv = rctx;
+    mm.shmem_addr = mmshm_addr;
+    mm.shmem_size = mmshm_size;
+    mm.svc_type = RPMI_MM_SERVICE_EFI;
+    mm.u.svc_efi.ops = &efi_ops;
+    mm.u.svc_efi.ops_priv = rctx;
 
-    grp = rpmi_service_group_mm_create(&mmg);
+    mmi = rpmi_mm_create(&mm);
+    grp = rpmi_service_group_mm_create(mmi);
     if (!grp) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: mm grp create failed\n ", __func__);
         return -1;

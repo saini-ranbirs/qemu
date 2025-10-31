@@ -29,21 +29,27 @@ static enum rpmi_error rpmi_mm_get_attributes(struct rpmi_service_group *group,
 {
 	struct rpmi_service_group_mm *sgmm = group->priv;
 	rpmi_uint32_t *rsp = (void *)response_data;
+	rpmi_uint64_t shmem_addr;
+	rpmi_uint32_t shmem_size;
 	enum rpmi_error status;
 
 	if (sgmm && response_datalen) {
-		*response_datalen = 5 * sizeof(rpmi_uint32_t);
-		rsp[1] = rpmi_to_xe32(xport->is_be, sgmm->mm_version);
-		rsp[2] = rpmi_to_xe32(xport->is_be,
-				      sgmm->mm.shmem_addr & 0xFFFFFFFF);
-		rsp[3] = rpmi_to_xe32(xport->is_be, sgmm->mm.shmem_addr >> 32);
-		rsp[4] = rpmi_to_xe32(xport->is_be, sgmm->mm.shmem_size);
-		status = RPMI_SUCCESS;
+		status = rpmi_mm_instance_mem_info(sgmm->mmi, &shmem_addr,
+						   &shmem_size);
+		if (status != RPMI_SUCCESS)
+			status = RPMI_ERR_NO_DATA;
 	} else {
 		status = RPMI_ERR_NO_DATA;
 	}
 
 	rsp[0] = rpmi_to_xe32(xport->is_be, (rpmi_int32_t)status);
+	if (status == RPMI_SUCCESS) {
+		*response_datalen = 5 * sizeof(rpmi_uint32_t);
+		rsp[1] = rpmi_to_xe32(xport->is_be, sgmm->mm_version);
+		rsp[2] = rpmi_to_xe32(xport->is_be, shmem_addr & 0xFFFFFFFF);
+		rsp[3] = rpmi_to_xe32(xport->is_be, shmem_addr >> 32);
+		rsp[4] = rpmi_to_xe32(xport->is_be, shmem_size);
+	}
 
 	return RPMI_SUCCESS;
 }
@@ -65,7 +71,7 @@ static enum rpmi_error rpmi_mm_communicate(struct rpmi_service_group *group,
 
 	DPRINTF("Service group = %s", group->name);
 
-	status = rpmi_mm_instance_communicate(group, service, xport,
+	status = rpmi_mm_instance_communicate(sgmm->mmi, service, xport,
 					      request_datalen, request_data,
 					      response_datalen, response_data);
 
@@ -96,21 +102,14 @@ static struct rpmi_service rpmi_mm_services[RPMI_MM_SRV_ID_MAX] = {
 	        },
 };
 
-struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mm *mm)
+struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mmi *mmi)
 {
 	struct rpmi_service_group_mm *sgmm;
 	struct rpmi_service_group *group;
 
 	/* Critical parameter should be non-NULL */
-	if (!mm) {
+	if (!mmi) {
 		DPRINTF("invalid parameter: instance pointer is NULL");
-		return NULL;
-	}
-
-	/* svc_type should be in desired range */
-	if ((mm->svc_type < RPMI_MM_SERVICE_EFI) ||
-	    (mm->svc_type >= RPMI_MM_SERVICE_MAX)) {
-		DPRINTF("invalid parameter: service type");
 		return NULL;
 	}
 
@@ -124,19 +123,10 @@ struct rpmi_service_group *rpmi_service_group_mm_create(struct rpmi_mm *mm)
 	sgmm->mm_version =
 	    ((RPMI_MM_MAJOR_VER << MM_MAJOR_VER_SHIFT) & MM_MAJOR_VER_MASK) |
 	    ((RPMI_MM_MINOR_VER & MM_MINOR_VER_MASK));
-	rpmi_env_memcpy(&sgmm->mm, mm, sizeof(sgmm->mm));
+	sgmm->mmi = mmi;
 
 	group = &sgmm->group;
-
-	switch (sgmm->mm.svc_type) {
-	case RPMI_MM_SERVICE_EFI:
-		group->name = "mm_efi";
-		break;
-
-	default:
-		break;
-	}
-
+	group->name = "mm";
 	group->servicegroup_id = RPMI_SRVGRP_MANAGEMENT_MODE;
 	group->servicegroup_version =
 	    RPMI_BASE_VERSION(RPMI_SPEC_VERSION_MAJOR, RPMI_SPEC_VERSION_MINOR);

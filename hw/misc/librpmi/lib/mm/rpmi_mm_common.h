@@ -21,7 +21,7 @@
 
 struct rpmi_service_group_mm {
 	rpmi_uint32_t mm_version;
-	struct rpmi_mm mm;
+	struct rpmi_mmi *mmi;
 	struct rpmi_service_group group;
 };
 
@@ -32,7 +32,7 @@ struct rpmi_mm_comm_req {
 	rpmi_uint32_t odata_len;
 };
 
-typedef enum rpmi_error (*communicate_fp)(struct rpmi_service_group *group,
+typedef enum rpmi_error (*communicate_fp)(struct rpmi_mm *mm,
 					  struct rpmi_service *service,
 					  struct rpmi_transport *xport,
 					  rpmi_uint16_t request_datalen,
@@ -40,12 +40,16 @@ typedef enum rpmi_error (*communicate_fp)(struct rpmi_service_group *group,
 					  rpmi_uint16_t *response_datalen,
 					  rpmi_uint8_t *response_data);
 
-enum rpmi_error rpmi_mm_instance_communicate(struct rpmi_service_group *group,
+enum rpmi_error rpmi_mm_instance_communicate(struct rpmi_mmi *mmi,
 					     struct rpmi_service *service,
 					     struct rpmi_transport *xport,
 					     rpmi_uint16_t request_datalen,
 					     const rpmi_uint8_t *request_data,
 					     rpmi_uint16_t *response_datalen,
 					     rpmi_uint8_t *response_data);
+
+enum rpmi_error rpmi_mm_instance_mem_info(struct rpmi_mmi *mmi,
+					  rpmi_uint64_t *mem_addr,
+					  rpmi_uint32_t *mem_size);
 
 #endif /* __RPMI_MM_COMMON_H__ */

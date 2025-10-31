@@ -240,7 +240,7 @@ static inline rpmi_uint64_t fn_get_payload_size(rpmi_uint8_t *comm_hdr_data,
 	return EFI_SUCCESS;
 }
 
-static enum rpmi_error efi_var_fn_handler(struct rpmi_service_group_mm *sgmm,
+static enum rpmi_error efi_var_fn_handler(struct rpmi_mm *mm,
 					  void *comm_buf, rpmi_uint64_t bufsize)
 {
 	rpmi_uint64_t status = EFI_SUCCESS, payload_size;
@@ -274,7 +274,7 @@ static enum rpmi_error efi_var_fn_handler(struct rpmi_service_group_mm *sgmm,
 		DPRINTF("Processing %s efi_calls_counter %u",
 			get_var_fn_string(var_comm_hdr->function),
 			++efi_calls_counter);
-		status = fn_get_variable(&sgmm->mm.u.svc_efi, var_comm_hdr,
+		status = fn_get_variable(&mm->u.svc_efi, var_comm_hdr,
 					 payload_size);
 		break;
 
@@ -282,7 +282,7 @@ static enum rpmi_error efi_var_fn_handler(struct rpmi_service_group_mm *sgmm,
 		DPRINTF("Processing %s efi_calls_counter %u",
 			get_var_fn_string(var_comm_hdr->function),
 			++efi_calls_counter);
-		status = fn_get_next_var_name(&sgmm->mm.u.svc_efi, var_comm_hdr,
+		status = fn_get_next_var_name(&mm->u.svc_efi, var_comm_hdr,
 					      payload_size);
 		break;
 
@@ -290,7 +290,7 @@ static enum rpmi_error efi_var_fn_handler(struct rpmi_service_group_mm *sgmm,
 		DPRINTF("Processing %s efi_calls_counter %u",
 			get_var_fn_string(var_comm_hdr->function),
 			++efi_calls_counter);
-		status = fn_set_variable(&sgmm->mm.u.svc_efi, var_comm_hdr,
+		status = fn_set_variable(&mm->u.svc_efi, var_comm_hdr,
 					 payload_size);
 		break;
 
@@ -320,7 +320,7 @@ static enum rpmi_error efi_var_fn_handler(struct rpmi_service_group_mm *sgmm,
 	return RPMI_SUCCESS;
 }
 
-enum rpmi_error mm_efi_communicate(struct rpmi_service_group *group,
+enum rpmi_error mm_efi_communicate(struct rpmi_mm *mm,
 				   struct rpmi_service *service,
 				   struct rpmi_transport *xport,
 				   rpmi_uint16_t request_datalen,
@@ -328,7 +328,6 @@ enum rpmi_error mm_efi_communicate(struct rpmi_service_group *group,
 				   rpmi_uint16_t *response_datalen,
 				   rpmi_uint8_t *response_data)
 {
-	struct rpmi_service_group_mm *sgmm = group->priv;
 	struct efi_var_policy_comm_header *policy_hdr;
 	struct mm_efi_comm_header *mm_comm_hdr, *msg;
 	rpmi_uint32_t *rsp = (void *)response_data;
@@ -340,11 +339,11 @@ enum rpmi_error mm_efi_communicate(struct rpmi_service_group *group,
 	if (!request_data)
 		return RPMI_ERR_NO_DATA;
 
-	if (sgmm->mm.svc_type != RPMI_MM_SERVICE_EFI)
+	if (mm->svc_type != RPMI_MM_SERVICE_EFI)
 		return RPMI_ERR_NO_DATA;
 
 	mmc_req = (struct rpmi_mm_comm_req *)request_data;
-	mm_addr = sgmm->mm.shmem_addr + mmc_req->idata_off;
+	mm_addr = mm->shmem_addr + mmc_req->idata_off;
 
 	rpmi_env_readb(mm_addr, (rpmi_uint8_t *)&msg_buffer,
 		       sizeof(struct mm_efi_comm_header));
@@ -363,7 +362,7 @@ enum rpmi_error mm_efi_communicate(struct rpmi_service_group *group,
 	case MM_EFI_VAR_PROTOCOL_GUID:
 		DPRINTF("Handling header %s",
 			get_hdr_guid_string(mm_comm_hdr_guid_lut[index].name));
-		status = efi_var_fn_handler(sgmm, &msg->data, msg_len);
+		status = efi_var_fn_handler(mm, &msg->data, msg_len);
 		rpmi_env_writeb(mm_addr + mmc_req->odata_off,
 				(rpmi_uint8_t *)msg, msg_len);
 		break;
