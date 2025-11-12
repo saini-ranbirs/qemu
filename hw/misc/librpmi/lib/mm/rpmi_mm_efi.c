@@ -454,8 +454,16 @@ enum rpmi_error register_rpmi_mm_efi_service(struct rpmi_service_group *group,
 		efi_srvlist[0].priv_data = (void *)mmefi;
 	}
 
+#if 0
 	status = rpmi_mm_service_register(group, array_size(efi_srvlist),
 					  efi_srvlist);
+#else
+	status = rpmi_mm_service_register(group, 2, efi_srvlist);
+	status |= rpmi_mm_service_register(group, 3, &efi_srvlist[2]);
+
+	// test for conflict reporting
+	rpmi_mm_service_register(group, 1, efi_srvlist);
+#endif
 
 	if (status) {
 		rpmi_env_free(mmefi);

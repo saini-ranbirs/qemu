@@ -26,7 +26,7 @@ struct rpmi_shmem {
 	/** Pointer to platform specific operations */
 	const struct rpmi_shmem_platform_ops *ops;
 
-	/** Private data of the platform specific oprations */
+	/** Private data of the platform specific operations */
 	void *ops_priv;
 };
 
